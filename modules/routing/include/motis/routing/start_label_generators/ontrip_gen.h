@@ -14,7 +14,7 @@ template <search_dir Dir, typename Label>
 struct ontrip_gen {
   static std::vector<Label*> generate(schedule const& sched, mem_manager& mem,
                                       lower_bounds& lbs, edge const* start_edge,
-                                      std::vector<edge> const&,
+                                      std::vector<edge> const& meta_edges,
                                       std::vector<edge> const& query_edges,
                                       time interval_begin,
                                       time /* interval_end */,
@@ -30,7 +30,7 @@ struct ontrip_gen {
       generate_train_start(sched, mem, lbs, start_edge, interval_begin, lcon,
                            labels);
     } else {
-      generate_station_starts(sched, mem, lbs, start_edge, interval_begin,
+      generate_station_starts(sched, mem, lbs, meta_edges, interval_begin,
                               starting_footpaths, lcon, labels);
     }
     return labels;
@@ -60,13 +60,18 @@ struct ontrip_gen {
   }
 
   static void generate_station_starts(schedule const& sched, mem_manager& mem,
-                                      lower_bounds& lbs, edge const* start_edge,
+                                      lower_bounds& lbs,
+                                      std::vector<edge> const& meta_edges,
                                       time start_time, bool starting_footpaths,
                                       light_connection const* lcon,
                                       std::vector<Label*>& labels) {
-    generate_labels_at_route_nodes(sched, mem, lbs, {{start_edge, 0}},
-                                   start_time, starting_footpaths, false, lcon,
-                                   labels);
+    for (auto const& me : meta_edges) {
+      generate_labels_at_route_nodes(sched, mem, lbs, {{&me, 0}}, start_time,
+                                     starting_footpaths, false, lcon, labels);
+    }
+    // generate_labels_at_route_nodes(sched, mem, lbs, {{start_edge, 0}},
+    //                               start_time, starting_footpaths, false,
+    //                               lcon, labels);
   }
 
   static void generate_train_start(schedule const&, mem_manager& mem,

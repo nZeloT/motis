@@ -70,8 +70,13 @@ csa_query::csa_query(schedule const& sched,
       auto const start =
           reinterpret_cast<OntripStationStart const*>(req->start());
       verify_external_timestamp(sched, start->departure_time());
-      meta_starts_ = get_metas(sched, start->station(), req->use_start_metas());
-      meta_dests_ = get_metas(sched, req->destination(), req->use_dest_metas());
+      auto use_start_metas = false;
+      auto use_dest_metas = req->use_dest_metas();
+      if (dir_ == search_dir::BWD) {
+        std::swap(use_start_metas, use_dest_metas);
+      }
+      meta_starts_ = get_metas(sched, start->station(), use_start_metas);
+      meta_dests_ = get_metas(sched, req->destination(), use_dest_metas);
       search_interval_.begin_ =
           unix_to_motistime(sched, start->departure_time());
       break;
@@ -81,8 +86,13 @@ csa_query::csa_query(schedule const& sched,
       auto const start = reinterpret_cast<PretripStart const*>(req->start());
       verify_external_timestamp(sched, start->interval()->begin());
       verify_external_timestamp(sched, start->interval()->end());
-      meta_starts_ = get_metas(sched, start->station(), req->use_start_metas());
-      meta_dests_ = get_metas(sched, req->destination(), req->use_dest_metas());
+      auto use_start_metas = req->use_start_metas();
+      auto use_dest_metas = req->use_dest_metas();
+      if (dir_ == search_dir::BWD) {
+        std::swap(use_start_metas, use_dest_metas);
+      }
+      meta_starts_ = get_metas(sched, start->station(), use_start_metas);
+      meta_dests_ = get_metas(sched, req->destination(), use_dest_metas);
       search_interval_.begin_ =
           unix_to_motistime(sched, start->interval()->begin());
       search_interval_.end_ =

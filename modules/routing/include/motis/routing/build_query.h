@@ -89,6 +89,7 @@ inline search_query build_query(schedule const& sched,
       q.from_ = get_station_node(sched, start->station());
       q.interval_begin_ = unix_to_motistime(sched, start->departure_time());
       q.interval_end_ = INVALID_TIME;
+      q.use_start_metas_ = false;
       q.use_dest_metas_ = req->use_dest_metas();
       q.use_start_footpaths_ = req->use_start_footpaths();
       break;
@@ -103,6 +104,7 @@ inline search_query build_query(schedule const& sched,
       q.from_ = ontrip_start.first;
       q.lcon_ = ontrip_start.second;
       q.interval_end_ = INVALID_TIME;
+      q.use_start_metas_ = false;
       q.use_dest_metas_ = req->use_dest_metas();
       q.use_start_footpaths_ = req->use_start_footpaths();
       break;
@@ -114,6 +116,10 @@ inline search_query build_query(schedule const& sched,
   q.sched_ = &sched;
   q.to_ = get_station_node(sched, req->destination());
   q.query_edges_ = create_additional_edges(req->additional_edges(), sched);
+
+  if (req->search_dir() == SearchDir_Backward) {
+    std::swap(q.use_start_metas_, q.use_dest_metas_);
+  }
 
   // TODO(Felix Guendling) remove when more edge types are supported
   if (req->search_dir() == SearchDir_Backward &&

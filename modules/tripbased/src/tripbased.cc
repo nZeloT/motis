@@ -159,6 +159,9 @@ trip_based_query build_tb_query(RoutingRequest const* req,
   q.use_start_metas_ = req->use_start_metas() && !q.intermodal_start_ &&
                        q.start_type_ == Start_PretripStart;
   q.use_dest_metas_ = req->use_dest_metas() && !q.intermodal_destination_;
+  if (q.dir_ == search_dir::BWD) {
+    std::swap(q.use_start_metas_, q.use_dest_metas_);
+  }
   q.use_start_footpaths_ = req->use_start_footpaths();
 
   if (q.use_start_metas_) {
