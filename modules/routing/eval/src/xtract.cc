@@ -99,6 +99,10 @@ int main(int argc, char** argv) {
               from->station()->id()->str(), to->station()->id()->str(),
               static_cast<int>(
                   (to->arrival()->time() - from->departure()->time()) / 60)});
+          footpaths.emplace(hrd_footpath{
+              to->station()->id()->str(), from->station()->id()->str(),
+              static_cast<int>(
+                  (to->arrival()->time() - from->departure()->time()) / 60)});
         }
 
         for (auto const& trip : *c->trips()) {
@@ -314,7 +318,7 @@ int main(int argc, char** argv) {
   }
 
   for (auto const& file : {ATTRIBUTES, TRACKS, INFOTEXT, THROUGH_SERVICES,
-                           MERGE_SPLIT_SERVICES, DIRECTIONS}) {
+                           MERGE_SPLIT_SERVICES, DIRECTIONS, MIN_CT_FILE}) {
     std::ofstream out{
         (new_schedule_path / CORE_DATA / parser_config.files(file)).c_str()};
   }
