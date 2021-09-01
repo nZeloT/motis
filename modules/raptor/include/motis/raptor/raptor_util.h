@@ -5,13 +5,6 @@
 namespace motis {
 namespace raptor {
 
-// returns the size of a vectors contents in bytes
-// works only if T is trivial
-template <typename T>
-inline auto vec_size_bytes(std::vector<T> const& vec) { 
-  return sizeof(T) * vec.size(); 
-}
-
 // append contents of a vector to another one
 template<typename T>
 inline void append_vector(std::vector<T>& dst, std::vector<T> const& elems) {

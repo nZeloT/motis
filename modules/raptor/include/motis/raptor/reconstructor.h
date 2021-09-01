@@ -1,6 +1,8 @@
 #include "motis/raptor-core/raptor_timetable.h"
 #include "motis/raptor-core/raptor_query.h"
 
+#include "motis/raptor/raptor_util.h"
+
 #include "motis/routing/output/transport.h"
 #include "motis/routing/output/to_journey.h"
 #include "motis/routing/output/stop.h"

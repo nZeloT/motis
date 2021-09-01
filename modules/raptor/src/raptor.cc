@@ -4,15 +4,14 @@
 
 #include "motis/module/message.h"
 
-#include "motis/raptor/get_gpu_timetable.h"
 #include "motis/raptor/get_raptor_query.h"
 #include "motis/raptor/get_raptor_schedule.h"
+#include "motis/raptor/gpu/get_gpu_timetable.h"
 
 #include "motis/bootstrap/module_settings.h"
 
 #include "utl/to_vec.h"
 
-#include "motis/raptor-core/cuda_util.h"
 #include "motis/raptor-core/raptor_query.h"
 
 #include "motis/core/common/timing.h"
@@ -26,8 +25,9 @@
 #include "motis/raptor/get_raptor_schedule.h"
 #include "motis/raptor/raptor_search.h"
 
-#include "motis/kernel/copy_timetable.cuh"
-#include "motis/kernel/gpu_raptor.cuh"
+#include "motis/raptor/gpu/copy_timetable.cuh"
+#include "motis/raptor/gpu/gpu_raptor.cuh"
+#include "motis/raptor/gpu/device_utils.h"
 
 namespace p = std::placeholders;
 using namespace motis::module;
@@ -85,7 +85,7 @@ void raptor::init(motis::module::registry& reg) {
   std::vector<std::string> const prefs = {"GeForce GTX 1050 Ti",
                                           "GeForce RTX 2080",
                                           "GeForce GTX 1080", "Quadro K600"};
-  set_device(prefs);
+  ::set_device(prefs);
 }
 
 template <typename RaptorFun, typename Query>

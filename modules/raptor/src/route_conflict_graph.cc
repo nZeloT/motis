@@ -4,7 +4,7 @@
 
 #include "motis/core/common/logging.h"
 
-#include "motis/raptor-core/raptor_util.h"
+#include "motis/raptor/raptor_util.h"
 
 #include "utl/parallel_for.h"
 

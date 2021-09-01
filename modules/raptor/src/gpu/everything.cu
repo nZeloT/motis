@@ -1,10 +1,10 @@
 #include "motis/raptor-core/raptor_query.h"
 #include "motis/raptor-core/gpu_timetable.h"
 
-#include "motis/kernel/copy_timetable.cuh"
-#include "motis/kernel/gpu_raptor.cuh"
-#include "motis/kernel/hybrid_raptor.cuh"
-#include "motis/kernel/cluster_raptor.cuh"
+#include "motis/raptor/gpu/copy_timetable.cuh"
+#include "motis/raptor/gpu/gpu_raptor.cuh"
+#include "motis/raptor/gpu/hybrid_raptor.cuh"
+#include "motis/raptor/gpu/cluster_raptor.cuh"
 
 namespace motis {
 
@@ -105,6 +105,7 @@ void inline fetch_arrivals_async(d_query& dq, uint8_t const round_k,
 
 } // namespace motis
 
+#include "device_utils.cu"
 #include "copy_timetable.cu"
 #include "gpu_raptor.cu"
 #include "hybrid_raptor.cu"

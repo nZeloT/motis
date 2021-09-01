@@ -3,15 +3,14 @@
 #include "motis/core/journey/journey.h"
 
 #include "motis/raptor-core/raptor_timetable.h"
-#include "motis/raptor-core/raptor_util.h"
 
-#include "motis/raptor/reconstructor.h"
-#include "motis/raptor/cpu_raptor.h"
+#include "motis/raptor/cpu/cpu_raptor.h"
 #include "motis/raptor/print_raptor.h"
+#include "motis/raptor/reconstructor.h"
 
-#include "motis/kernel/gpu_raptor.cuh"
-#include "motis/kernel/hybrid_raptor.cuh"
-#include "motis/kernel/cluster_raptor.cuh"
+#include "motis/raptor/gpu/gpu_raptor.cuh"
+#include "motis/raptor/gpu/hybrid_raptor.cuh"
+#include "motis/raptor/gpu/cluster_raptor.cuh"
 
 namespace motis {
 namespace raptor {

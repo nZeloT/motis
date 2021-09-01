@@ -1,7 +1,7 @@
 #pragma once
 
 #include "motis/raptor-core/raptor_query.h"
-#include "motis/raptor-core/raptor_schedule.h"
+#include "motis/raptor/raptor_schedule.h"
 
 #include "motis/core/schedule/schedule.h"
 #include "motis/module/message.h"

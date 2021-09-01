@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 
+
 namespace motis {
 namespace raptor {
 
@@ -32,23 +33,6 @@ template <typename T>
 inline void cuda_malloc_set(T** ptr, size_t const bytes, char const value) {
   cudaMalloc(ptr, bytes);           cc();
   cudaMemset(*ptr, value, bytes);   cc();
-}
-
-inline auto set_device(std::vector<std::string> const& device_prefs) {
-  for (auto const& pick_device : device_prefs) {
-    int device_count = 0;
-    cudaGetDeviceCount(&device_count); cc();
-
-    for (auto device_id = 0; device_id < device_count; ++device_id) {
-      cudaSetDevice(device_id); cc();
-      cudaDeviceProp device_properties;
-      cudaGetDeviceProperties(&device_properties, device_id); cc();
-      std::string const device_name(device_properties.name);
-      if (device_name == pick_device) { return device_id; }
-    }
-  }
-  
-  return -1;
 }
 
 } // namespace raptor

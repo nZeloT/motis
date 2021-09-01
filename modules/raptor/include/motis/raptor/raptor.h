@@ -5,7 +5,7 @@
 #include "motis/raptor-core/gpu_timetable.h"
 
 #include "motis/raptor/raptor_statistics.h"
-#include "motis/raptor-core/raptor_schedule.h"
+#include "motis/raptor/raptor_schedule.h"
 
 namespace motis {
 namespace raptor {

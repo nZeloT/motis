@@ -7,7 +7,7 @@
 #include "motis/core/access/station_access.h"
 #include "motis/core/access/trip_iterator.h"
 
-#include "motis/raptor-core/raptor_util.h"
+#include "motis/raptor/raptor_util.h"
 
 #include "motis/raptor/route_conflict_graph.h"
 
@@ -557,7 +557,6 @@ std::unique_ptr<raptor_schedule> transformable_to_schedule(
     }
   }
 
-  LOG(info) << "Stroring custer infos";
   raptor_sched->cluster_border_ = ttt.cluster_border_;
   raptor_sched->cluster_inland_ = ttt.cluster_inland_;
   raptor_sched->total_border_stations_ = ttt.total_border_stations_;

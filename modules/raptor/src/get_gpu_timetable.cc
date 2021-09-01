@@ -1,8 +1,8 @@
 #include "motis/core/common/logging.h"
-#include "motis/raptor-core/raptor_schedule.h"
 #include "motis/raptor-core/raptor_timetable.h"
 #include "motis/raptor-core/gpu_timetable.h"
-#include "motis/raptor-core/raptor_util.h"
+#include "motis/raptor/raptor_schedule.h"
+#include "motis/raptor/raptor_util.h"
 
 namespace motis {
 namespace raptor {

@@ -1,8 +1,15 @@
-#include "motis/raptor-core/raptor_util.h"
+#include <cstdio>
 
 namespace motis {
 
 size_t copied_bytes = 0;
+
+// returns the size of a vectors contents in bytes
+// works only if T is trivial
+template <typename T>
+inline auto vec_size_bytes(std::vector<T> const& vec) {
+  return sizeof(T) * vec.size();
+}
 
 template <typename T>
 inline void copy_vector_to_device(std::vector<T> const& vec, T** ptr) {
@@ -53,9 +60,8 @@ device_gpu_timetable copy_timetable_to_device(host_gpu_timetable const& h_gtt) {
                      0,
                      cudaMemcpyHostToDevice);             cc();
 
-//  LOG(info) << "Finished copying RAPTOR timetable to device";
-//  LOG(info) << "Copied " << ((double) copied_bytes) / (1024 * 1024)
-//            << " mibi bytes";
+  printf("Finished copying RAPTOR timetable to device\n");
+  printf("Copied %f mibi bytes\n", ((static_cast<double>(copied_bytes)) / (1024 * 1024)));
 
   return d_gtt;
 }

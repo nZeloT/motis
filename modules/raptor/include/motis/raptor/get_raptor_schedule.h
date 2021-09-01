@@ -6,7 +6,7 @@
 #include "motis/core/schedule/footpath.h"
 
 #include "motis/raptor-core/raptor_timetable.h"
-#include "motis/raptor-core/raptor_schedule.h"
+#include "motis/raptor/raptor_schedule.h"
 
 namespace motis {
 namespace raptor {

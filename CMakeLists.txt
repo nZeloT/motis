@@ -179,11 +179,6 @@ add_subdirectory(base/loader EXCLUDE_FROM_ALL)
 add_subdirectory(base/module EXCLUDE_FROM_ALL)
 add_subdirectory(base/raptor-core EXCLUDE_FROM_ALL)
 
-if(MOTIS_CUDA)
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/cuda/kernel/include)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cuda)
-endif()
-
 file(GLOB all-modules RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/modules ${CMAKE_CURRENT_SOURCE_DIR}/modules/*)
 list(REMOVE_ITEM all-modules ".DS_Store")
 string(REPLACE ";" " " modules-option "${all-modules}")
