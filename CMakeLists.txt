@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.17)
 project(motis)
 
 enable_language(CXX C ASM)
@@ -49,6 +49,7 @@ if (MOTIS_CUDA)
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} ${MOTIS_CUDA_ARCH} --compiler-options -static")
   endif()
   enable_language(CUDA)
+  include(FindCUDAToolkit)
 endif()
 
 option(MOTIS_LINT "enable lint (clang-tidy) target" OFF)
@@ -165,10 +166,23 @@ endif()
 ################################
 # MOTIS
 ################################
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/base/bootstrap/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/base/core/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/base/loader/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/base/module/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/base/raptor-core/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/test/include)
+
 add_subdirectory(base/data EXCLUDE_FROM_ALL)
 add_subdirectory(base/core EXCLUDE_FROM_ALL)
 add_subdirectory(base/loader EXCLUDE_FROM_ALL)
 add_subdirectory(base/module EXCLUDE_FROM_ALL)
+add_subdirectory(base/raptor-core EXCLUDE_FROM_ALL)
+
+if(MOTIS_CUDA)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/cuda/kernel/include)
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cuda)
+endif()
 
 file(GLOB all-modules RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/modules ${CMAKE_CURRENT_SOURCE_DIR}/modules/*)
 list(REMOVE_ITEM all-modules ".DS_Store")

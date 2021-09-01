@@ -31,4 +31,12 @@ uint16_t get_accessibility(journey const& journey) {
                          });
 }
 
+time_t get_arrival(journey const& journey) {
+  return journey.stops_.back().arrival_.timestamp_;
+}
+
+time_t get_departure(journey const& journey) {
+  return journey.stops_.front().departure_.timestamp_;
+}
+
 }  // namespace motis
