@@ -3,23 +3,28 @@
 #include <cassert>
 #include <cinttypes>
 #include <ctime>
+#include <limits>
 #include <string>
 
 #include "motis/core/common/constexpr_abs.h"
 #include "motis/core/common/unixtime.h"
 
-constexpr uint16_t MAX_DAYS = 512;
-constexpr uint16_t MINUTES_A_DAY = 1440;
-constexpr uint32_t SECONDS_A_DAY = MINUTES_A_DAY * 60;
-
 namespace motis {
 
 using day_idx_t = int16_t;
+using duration = uint16_t;
+
+constexpr auto const MAX_DAYS = day_idx_t{512};
+constexpr auto const MINUTES_A_DAY = duration{1440};
+constexpr auto const SECONDS_A_DAY = uint32_t{MINUTES_A_DAY * 60};
+constexpr auto const INVALID_DURATION = std::numeric_limits<duration>::max();
 
 struct time {
-  constexpr explicit time(int16_t const day, uint16_t const minute)
+  constexpr time() = default;
+
+  constexpr time(day_idx_t const day, int16_t const minute)
       : day_{static_cast<decltype(day_)>(
-            day + static_cast<int16_t>(minute / MINUTES_A_DAY))},
+            day + static_cast<day_idx_t>(minute / MINUTES_A_DAY))},
         min_{static_cast<decltype(min_)>(minute % MINUTES_A_DAY)} {}
 
   constexpr explicit time(int64_t const timestamp)
@@ -31,8 +36,6 @@ struct time {
       *this = -*this;
     }
   }
-
-  constexpr explicit time() : day_(MAX_DAYS), min_(0) {}
 
   constexpr inline bool valid() const {
     return day_ < MAX_DAYS && min_ < MINUTES_A_DAY;
@@ -109,7 +112,7 @@ struct time {
 
   std::string to_str() const;
 
-  int16_t day() const {
+  day_idx_t day() const {
     assert(day_ <= MAX_DAYS);
     return day_;
   }
@@ -120,8 +123,8 @@ struct time {
   }
 
 private:
-  day_idx_t day_;
-  uint16_t min_;
+  day_idx_t day_{MAX_DAYS};
+  uint16_t min_{MINUTES_A_DAY};
 };
 
 constexpr time INVALID_TIME = time();

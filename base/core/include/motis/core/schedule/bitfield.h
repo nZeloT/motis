@@ -6,10 +6,11 @@
 
 #include "utl/parser/cstr.h"
 
+#include "motis/core/schedule/time.h"
+
 namespace motis {
 
-constexpr unsigned BIT_COUNT = 512;
-using bitfield = std::bitset<BIT_COUNT>;
+using bitfield = std::bitset<MAX_DAYS>;
 
 template <std::size_t BitSetSize>
 bool operator<(std::bitset<BitSetSize> const& x,
@@ -26,14 +27,6 @@ bool operator<(std::bitset<BitSetSize> const& x,
   }
   return false;
 }
-
-template <std::size_t BitSetSize>
-struct bitset_comparator {
-  bool operator()(std::bitset<BitSetSize> const& lhs,
-                  std::bitset<BitSetSize> const& rhs) const {
-    return lhs < rhs;
-  }
-};
 
 template <std::size_t BitSetSize>
 std::bitset<BitSetSize> create_uniform_bitfield(char val) {

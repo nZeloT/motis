@@ -8,6 +8,7 @@
 #include "flatbuffers/flatbuffers.h"
 
 #include "cista/hashing.h"
+#include "cista/reflection/comparable.h"
 
 #include "motis/hash_map.h"
 #include "motis/hash_set.h"
@@ -22,13 +23,18 @@
 #include "motis/core/schedule/schedule.h"
 #include "motis/core/schedule/timezone.h"
 
+#include "motis/loader/bitfield.h"
 #include "motis/loader/loader_options.h"
 #include "motis/loader/timezone_util.h"
-#include "motis/schedule/bitfield.h"
 
 #include "motis/schedule-format/Schedule_generated.h"
 
 namespace motis::loader {
+
+struct lcon_times {
+  CISTA_COMPARABLE()
+  uint16_t d_time_, a_time_;
+};
 
 struct route_section {
   route_section()
@@ -180,9 +186,6 @@ struct graph_builder {
   void connect_reverse();
 
   void sort_connections();
-  std::vector<std::pair<std::vector<time>, mcd::hash_set<unsigned>>>
-  service_times_to_utc(bitfield const& traffic_days, day_idx_t start_idx,
-                       day_idx_t end_idx, Service const* s);
   void sort_trips();
 
   bitfield const& get_or_create_bitfield(
