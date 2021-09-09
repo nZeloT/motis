@@ -5,10 +5,10 @@ namespace raptor {
 
 struct mark_store {
   mark_store() = delete;
-  mark_store(size_t const size) : marks_(size, false) {}
+  explicit mark_store(size_t const size) : marks_(size, false) {}
 
   void mark(int const idx) { marks_[idx] = true; }
-  bool marked(int const idx) const { return marks_[idx]; }
+  [[nodiscard]] bool marked(int const idx) const { return marks_[idx]; }
   void reset() { std::fill(std::begin(marks_), std::end(marks_), false); }
 
   private:
@@ -74,6 +74,7 @@ inline void update_route(raptor_timetable const& tt,
                          arrivals const& prev_arrivals,
                          arrivals& current_round,
                          earliest_arrivals& ea,
+                         station_id target_stop_id,
                          mark_store& station_marks) {
   auto const& route = tt.routes_[r_id];
 
@@ -98,9 +99,12 @@ inline void update_route(raptor_timetable const& tt,
 
     // need the minimum due to footpaths updating arrivals 
     // and not earliest arrivals
-    auto const min = std::min(current_round[stop_id], ea[stop_id]);
+    auto const min_stop_arrival = std::min(current_round[stop_id], ea[stop_id]);
+    auto const target_stop_arrival = ea[target_stop_id];
 
-    if (stop_time.arrival_ < min) {
+    //only update if the new stop arrival time is lower than the current best
+    // and also lower than the current target stop arrival time
+    if (stop_time.arrival_ < std::min(min_stop_arrival, target_stop_arrival)) {
       station_marks.mark(stop_id);
       current_round[stop_id] = stop_time.arrival_;
       ea[stop_id] = stop_time.arrival_;
@@ -161,7 +165,7 @@ inline void invoke_cpu_raptor(raptor_query const& query,
                               raptor_schedule const& raptor_sched) {
   auto const& tt = raptor_sched.timetable_;
 
-  auto& result = *query.result_.get();
+  auto& result = *query.result_;
   earliest_arrivals ea(tt.stop_count(), invalid<motis::time>);
 
   mark_store station_marks(tt.stop_count());
@@ -193,6 +197,7 @@ inline void invoke_cpu_raptor(raptor_query const& query,
                    result[round_k - 1], 
                    result[round_k], 
                    ea,
+                   query.target_,
                    station_marks);
     }
 

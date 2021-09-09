@@ -155,6 +155,12 @@ bool update_arrival(global_mem_time * const base,
 
 #else
 
+  // we have a 16-bit time value array, but only 32-bit atomic operations
+  // therefore every two 16-bit time values are read as one 32-bit time value
+  // then they are the corresponding part is updated and stored if a better
+  // time value was found while the remaining 16 bit value part remains
+  // unchanged
+
   global_mem_time * const arr_address = &base[s_id];
   unsigned int* base_address = (unsigned int*)((size_t) arr_address & ~2);
   unsigned int old_value, assumed, new_value, compare_val;

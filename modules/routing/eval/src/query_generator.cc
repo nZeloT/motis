@@ -167,7 +167,8 @@ std::string query(std::string const& target, Start const start_type, int id,
           CreateInputStation(fbb, fbb.CreateString(to_eva),
                              fbb.CreateString("")),
           SearchType_Default, dir, fbb.CreateVector(std::vector<Offset<Via>>()),
-          fbb.CreateVector(std::vector<Offset<AdditionalEdgeWrapper>>()))
+          fbb.CreateVector(std::vector<Offset<AdditionalEdgeWrapper>>()),
+          start_type == Start_PretripStart, start_type == Start_PretripStart)
           .Union(),
       target);
   auto msg = make_msg(fbb);
