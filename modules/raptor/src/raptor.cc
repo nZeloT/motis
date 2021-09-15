@@ -113,13 +113,15 @@ msg_ptr raptor::make_response(std::vector<journey> const& js,
   auto const interval_start = start->departure_time();
   auto const interval_end = start->departure_time();
 
+  auto const statistics = to_stats_category("raptor", stats);
+
   message_creator fbb;
   fbb.create_and_finish(
       MsgContent_RoutingResponse,
       CreateRoutingResponse(
           fbb,
           fbb.CreateVector(std::vector<flatbuffers::Offset<Statistics>>{
-              to_fbs(fbb, to_stats_category("raptor", stats))}),
+              to_fbs(fbb, statistics)}),
           fbb.CreateVector(utl::to_vec(
               js,
               [&](journey const& j) { return motis::to_connection(fbb, j); })),

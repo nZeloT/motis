@@ -100,11 +100,8 @@ inline void update_route(raptor_timetable const& tt,
     // need the minimum due to footpaths updating arrivals 
     // and not earliest arrivals
     auto const min_stop_arrival = std::min(current_round[stop_id], ea[stop_id]);
-    auto const target_stop_arrival = ea[target_stop_id];
 
-    //only update if the new stop arrival time is lower than the current best
-    // and also lower than the current target stop arrival time
-    if (stop_time.arrival_ < std::min(min_stop_arrival, target_stop_arrival)) {
+    if (stop_time.arrival_ < min_stop_arrival) {
       station_marks.mark(stop_id);
       current_round[stop_id] = stop_time.arrival_;
       ea[stop_id] = stop_time.arrival_;
