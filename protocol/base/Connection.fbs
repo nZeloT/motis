@@ -87,6 +87,7 @@ table Connection {
   free_texts:[FreeText];
   problems:[Problem];
   night_penalty:ushort;
+  max_occupancy:ushort;
   db_costs:ushort;
   status:ConnectionStatus;
 }

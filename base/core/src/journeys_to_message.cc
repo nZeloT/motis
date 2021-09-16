@@ -146,7 +146,7 @@ Offset<Connection> to_connection(FlatBufferBuilder& b, journey const& j) {
                           b.CreateVector(convert_attributes(b, j.attributes_)),
                           b.CreateVector(convert_free_texts(b, j.free_texts_)),
                           b.CreateVector(convert_problems(b, j.problems_)),
-                          j.night_penalty_, j.db_costs_,
+                          j.night_penalty_, j.occupancy_max_, j.db_costs_,
                           status_to_fbs(j.status_));
 }
 

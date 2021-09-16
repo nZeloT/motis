@@ -494,11 +494,11 @@ uint8_t graph_builder::estimate_occupancy(int third, time dep_time,
       {0, 0, 0}  //
   };
 
-  if (std::any_of(info->attributes_.cbegin(), info->attributes_.cend(),
+  if (std::any_of(info->attributes_.begin(), info->attributes_.end(),
                   [](attribute const* a) {
                     return a->code_ == "00" || a->code_ == "10" ||
                            a->code_ == "01" || a->code_ == "11" ||
-                           a->text_.find("ausgelastet") != std::string::npos;
+                           a->text_.str().find("ausgelastet") != std::string::npos;
                   })) {
     return 2;
   }
