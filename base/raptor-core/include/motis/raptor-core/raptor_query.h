@@ -1,8 +1,8 @@
 #pragma once
 
 #include "motis/raptor-core/cuda_util.h"
-#include "motis/raptor-core/raptor_result.h"
 #include "motis/raptor-core/gpu_timetable.h"
+#include "motis/raptor-core/raptor_result.h"
 
 namespace motis {
 namespace raptor {
@@ -19,9 +19,10 @@ struct raptor_query : base_query {
   raptor_query() = delete;
   raptor_query(raptor_query const&) = delete;
 
-  raptor_query(base_query const& bq, raptor_timetable const& tt) {
+  raptor_query(base_query const& bq, raptor_timetable const& tt,
+               int config_dim_size) {
     static_cast<base_query&>(*this) = bq;
-    result_ = std::make_unique<raptor_result>(tt.stop_count());
+    result_ = std::make_unique<raptor_result>(tt.stop_count() * config_dim_size);
   }
 
   std::unique_ptr<raptor_result> result_;
@@ -30,7 +31,8 @@ struct raptor_query : base_query {
 struct d_query : base_query {
   d_query() = delete;
 
-  d_query(base_query const& bq, raptor_timetable const& tt) {
+  d_query(base_query const& bq, raptor_timetable const& tt,
+          int config_dim_size) {
     static_cast<base_query&>(*this) = bq;
 
     stop_count_ = tt.stop_count();
@@ -54,8 +56,10 @@ struct d_query : base_query {
 
     result_ = new raptor_result(stop_count_);
 
-    cudaStreamCreate(&transfer_stream_);          cc();
-    cudaStreamCreate(&proc_stream_);              cc();
+    cudaStreamCreate(&transfer_stream_);
+    cc();
+    cudaStreamCreate(&proc_stream_);
+    cc();
   }
 
 #if !defined(__CUDACC__)
@@ -67,15 +71,15 @@ struct d_query : base_query {
   d_query(d_query const&) = default;
 #endif
 
-  __host__ __device__ ~d_query() { 
-    // Only call free when destructor is called by host,
-    // not when device kernel exits, as we pass the query to the kernel
-    #if !defined(__CUDACC__) 
-      cuda_free(d_arrivals_.front());
-      cuda_free(station_marks_);
-      cuda_free(route_marks_);
-      delete result_;
-    #endif
+  __host__ __device__ ~d_query() {
+// Only call free when destructor is called by host,
+// not when device kernel exits, as we pass the query to the kernel
+#if !defined(__CUDACC__)
+    cuda_free(d_arrivals_.front());
+    cuda_free(station_marks_);
+    cuda_free(route_marks_);
+    delete result_;
+#endif
   }
 
   cudaStream_t proc_stream_;

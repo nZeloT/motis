@@ -61,11 +61,14 @@ base_query get_base_query(RoutingRequest const* routing_request,
   return q;
 }
 
-template <class Query>
+template <class Query, typename Config>
 inline Query get_query(motis::routing::RoutingRequest const* routing_request,
                 schedule const& sched, raptor_schedule const& raptor_sched) {
   auto const& tt = raptor_sched.timetable_;
-  return Query(get_base_query(routing_request, sched, raptor_sched), tt);
+  auto const config_dim_size = Config::trait_size();
+
+  return Query(get_base_query(routing_request, sched, raptor_sched), tt,
+               config_dim_size);
 }
 
 }  // namespace raptor

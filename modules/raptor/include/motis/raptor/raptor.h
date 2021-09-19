@@ -6,6 +6,7 @@
 
 #include "motis/raptor/raptor_statistics.h"
 #include "motis/raptor/raptor_schedule.h"
+#include "motis/raptor/raptor_implementation_type.h"
 
 namespace motis {
 namespace raptor {
@@ -23,11 +24,8 @@ struct raptor : public motis::module::module {
   void init(motis::module::registry&) override;
 
 private:
-  motis::module::msg_ptr route(motis::module::msg_ptr const&);
-
-  template<typename RaptorFun, typename Query>
   motis::module::msg_ptr route_generic(motis::module::msg_ptr const&,
-                                       RaptorFun const&);
+                                       implementation_type);
 
   motis::module::msg_ptr make_response(std::vector<journey> const&,
                                        motis::routing::RoutingRequest const*,

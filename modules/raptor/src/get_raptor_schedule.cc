@@ -1,7 +1,7 @@
 #include "motis/raptor/get_raptor_schedule.h"
 
-#include <numeric>
 #include <fstream>
+#include <numeric>
 
 #include "motis/core/common/logging.h"
 #include "motis/core/access/station_access.h"
@@ -23,10 +23,33 @@ std::vector<stop_time> get_stop_times_from_lcons(
   std::vector<stop_time> stop_times(lcons.size() + 1);
   for (auto idx = 0; idx < lcons.size(); ++idx) {
     auto const& lcon = lcons[idx];
-    if (lcon.in_allowed_) { stop_times[idx].departure_ = lcon.departure_; }
-    if (lcon.out_allowed_) { stop_times[idx + 1].arrival_ = lcon.arrival_; }
+    if (lcon.in_allowed_) {
+      stop_times[idx].departure_ = lcon.departure_;
+    }
+    if (lcon.out_allowed_) {
+      stop_times[idx + 1].arrival_ = lcon.arrival_;
+    }
   }
   return stop_times;
+}
+
+std::vector<stop_occupancy> get_stop_occupancies_from_lcons(
+    std::vector<raptor_lcon> const& lcons) {
+  auto const edge_count = lcons.size();
+  auto const stop_count = edge_count + 1;
+
+  std::vector<stop_occupancy> stop_occupancies(stop_count);
+
+  // first stop has no inbound edge; therefore also no occupancy
+  stop_occupancies[0].inbound_occupancy_ = 0;
+
+  for (auto idx = 1; idx < stop_count; ++idx) {
+    auto const& lcon = lcons[idx];
+
+    stop_occupancies[idx].inbound_occupancy_ = lcons[idx - 1].lcon_->occupancy_;
+  }
+
+  return stop_occupancies;
 }
 
 std::vector<station_id> get_route_stops_from_lcons(
@@ -84,7 +107,9 @@ void init_stop_routes(transformable_timetable& ttt) {
     ttt.stations_[trip.lcons_.back().to_].stop_routes_.push_back(r_id);
   }
 
-  for (auto& station : ttt.stations_) { sort_and_unique(station.stop_routes_); }
+  for (auto& station : ttt.stations_) {
+    sort_and_unique(station.stop_routes_);
+  }
 }
 
 void init_routes(schedule const& sched, transformable_timetable& ttt) {
@@ -125,6 +150,7 @@ void init_routes(schedule const& sched, transformable_timetable& ttt) {
       }
 
       t_trip.stop_times_ = get_stop_times_from_lcons(t_trip.lcons_);
+      t_trip.stop_occupancies_ = get_stop_occupancies_from_lcons(t_trip.lcons_);
 
       ++t_id;
     }
@@ -191,6 +217,7 @@ raptor_timetable create_raptor_timetable(transformable_timetable const& ttt) {
 
     for (auto const& trip : t_route.trips_) {
       append_vector(tt.stop_times_, trip.stop_times_);
+      append_vector(tt.stop_occupancies_, trip.stop_occupancies_);
     }
     append_vector(tt.route_stops_, t_route.route_stops_);
   }
@@ -281,7 +308,7 @@ void introduce_clustering(transformable_timetable& ttt, std::string const& fp) {
     if (station_clusters.size() == 1) {
       ttt.cluster_inland_[*station_clusters.begin()].push_back(s_id);
       ++total_inland_stations;
-    } else { // Border station, multiple clusters
+    } else {  // Border station, multiple clusters
       for (auto const c_id : station_clusters) {
         ttt.cluster_border_[c_id].push_back(s_id);
       }
@@ -342,7 +369,7 @@ void introduce_clustering(transformable_timetable& ttt, std::string const& fp) {
   // So here give every station not touched by the clustering a
   // valid cluster station id
   for (auto s_id = 0; s_id < station_id_to_cls_station_id.size(); ++s_id) {
-    if (!valid(station_id_to_cls_station_id[s_id])) { 
+    if (!valid(station_id_to_cls_station_id[s_id])) {
       station_id_to_cls_station_id[s_id] = next_cls_station;
       permutation.push_back(s_id);
       ++next_cls_station;
@@ -354,11 +381,15 @@ void introduce_clustering(transformable_timetable& ttt, std::string const& fp) {
 
   // Start with changing the cluster border / inland stations
   for (auto& border : ttt.cluster_border_) {
-    for (auto& s_id : border ) { s_id = station_id_to_cls_station_id[s_id]; }
+    for (auto& s_id : border) {
+      s_id = station_id_to_cls_station_id[s_id];
+    }
   }
 
   for (auto& inland : ttt.cluster_inland_) {
-    for (auto& s_id : inland) { s_id = station_id_to_cls_station_id[s_id]; }
+    for (auto& s_id : inland) {
+      s_id = station_id_to_cls_station_id[s_id];
+    }
   }
 
   decltype(ttt.stations_) new_stations;
@@ -376,7 +407,7 @@ void introduce_clustering(transformable_timetable& ttt, std::string const& fp) {
       fp.to_ = station_id_to_cls_station_id[fp.to_];
     }
 
-    for(auto& inc_fp : station.incoming_footpaths_) {
+    for (auto& inc_fp : station.incoming_footpaths_) {
       inc_fp.from_ = station_id_to_cls_station_id[inc_fp.from_];
       inc_fp.to_ = station_id_to_cls_station_id[inc_fp.to_];
     }
@@ -408,7 +439,7 @@ void introduce_clustering(transformable_timetable& ttt, std::string const& fp) {
       route_permutation.push_back(r_id);
       r_id = new_route_id;
       ++new_route_id;
-    } 
+    }
   }
 
   // Adjust the partitioning for the new route ids
@@ -444,11 +475,16 @@ auto get_station_departure_events(transformable_timetable const& ttt,
   for (auto const r_id : station.stop_routes_) {
     auto const& route = ttt.routes_[r_id];
 
-    for (stop_offset offset = 0; offset < route.route_stops_.size() -1; ++offset) {
-      if (route.route_stops_[offset] != s_id) { continue; }
+    for (stop_offset offset = 0; offset < route.route_stops_.size() - 1;
+         ++offset) {
+      if (route.route_stops_[offset] != s_id) {
+        continue;
+      }
 
       for (auto const& trip : route.trips_) {
-        if (!trip.lcons_[offset].in_allowed_) { continue; }
+        if (!trip.lcons_[offset].in_allowed_) {
+          continue;
+        }
         dep_events.push_back(trip.lcons_[offset].departure_);
       }
     }
@@ -539,8 +575,10 @@ std::unique_ptr<raptor_schedule> transformable_to_schedule(
 
         auto const s_id = raptor_sched->timetable_.route_stops_[rsi];
         auto const tt = raptor_sched->transfer_times_[s_id];
-        auto& arrival = raptor_sched ->timetable_.stop_times_[sti].arrival_;
-        if (valid(arrival)) { arrival += tt; }
+        auto& arrival = raptor_sched->timetable_.stop_times_[sti].arrival_;
+        if (valid(arrival)) {
+          arrival += tt;
+        }
       }
     }
   }
@@ -549,8 +587,8 @@ std::unique_ptr<raptor_schedule> transformable_to_schedule(
   for (auto s_id = 0; s_id < raptor_sched->timetable_.stop_count(); ++s_id) {
     auto const& station = raptor_sched->timetable_.stops_[s_id];
     for (auto f_idx = station.index_to_transfers_;
-              f_idx < station.index_to_transfers_ + station.footpath_count_;
-            ++f_idx) {
+         f_idx < station.index_to_transfers_ + station.footpath_count_;
+         ++f_idx) {
       auto& footpath = raptor_sched->timetable_.footpaths_[f_idx];
       auto const tt = raptor_sched->transfer_times_[s_id];
       footpath.duration_ -= tt;
@@ -584,15 +622,15 @@ std::unique_ptr<raptor_schedule> get_raptor_schedule(
   // after stops and routes are initialized
   init_stop_routes(ttt);
 
-//  if (write_conflict_graph) {
-//    auto const& conflict_graph = get_route_conflict_graph(ttt);
-//    write_conflict_graph_to_file(conflict_graph);
-//    write_route_graph_information_to_file(ttt);
-//  }
+  //  if (write_conflict_graph) {
+  //    auto const& conflict_graph = get_route_conflict_graph(ttt);
+  //    write_conflict_graph_to_file(conflict_graph);
+  //    write_route_graph_information_to_file(ttt);
+  //  }
 
-//  if (partitioning_path != "") {
-//    introduce_clustering(ttt, partitioning_path);
-//  }
+  //  if (partitioning_path != "") {
+  //    introduce_clustering(ttt, partitioning_path);
+  //  }
 
   return transformable_to_schedule(ttt);
 }

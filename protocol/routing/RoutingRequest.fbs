@@ -91,6 +91,9 @@ table Via {
 // ----------------------------------------------------------------------------
 enum SearchType : byte {
   Default,
+
+  MaxOccupancy,
+
   SingleCriterion,
   SingleCriterionNoIntercity,
   LateConnections,

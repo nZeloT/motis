@@ -35,6 +35,9 @@ using route_stops_index = uint32_t;
 using stop_routes_index = uint32_t;
 using footpaths_index = uint32_t;
 
+// additional attributes
+using occupancy = uint8_t;
+
 template<typename T> constexpr T invalid = std::numeric_limits<T>::max();
 
 // overload invalid for station id, 
@@ -92,6 +95,11 @@ struct stop_time {
   motis::time departure_{0};
 };
 
+//holds occupancy of stop inbound edge
+struct stop_occupancy {
+  occupancy inbound_occupancy_{0};
+};
+
 struct raptor_footpath {
   raptor_footpath() = delete;
   raptor_footpath(station_id const to, motis::time const dur)
@@ -129,6 +137,8 @@ struct raptor_timetable {
   std::vector<raptor_footpath> footpaths_;
 
   std::vector<stop_time> stop_times_;
+  std::vector<stop_occupancy> stop_occupancies_;
+
   std::vector<station_id> route_stops_;
   std::vector<route_id> stop_routes_;
 

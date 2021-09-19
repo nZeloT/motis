@@ -1,5 +1,6 @@
 #pragma once
 
+#include <motis/raptor-core/raptor_query.h>
 namespace motis {
 namespace raptor {
 
@@ -22,6 +23,7 @@ inline void set_upper_bounds(std::vector<std::vector<motis::time>>& arrivals,
               arrivals[round_k].size() * sizeof(motis::time));
 }
 
+template<typename Config>
 inline trip_count get_earliest_trip(raptor_timetable const& tt,
                                     raptor_route const& route,
                                     arrivals const& prev_arrivals,
@@ -54,6 +56,7 @@ inline trip_count get_earliest_trip(raptor_timetable const& tt,
   return invalid<trip_count>;
 }
 
+template<typename Config>
 inline void init_arrivals(raptor_result& result,
                           raptor_query const& q, 
                           raptor_schedule const& raptor_sched,
@@ -69,12 +72,12 @@ inline void init_arrivals(raptor_result& result,
   }
 }
 
+template<typename Config>
 inline void update_route(raptor_timetable const& tt,
                          route_id const r_id,
                          arrivals const& prev_arrivals,
                          arrivals& current_round,
                          earliest_arrivals& ea,
-                         station_id target_stop_id,
                          mark_store& station_marks) {
   auto const& route = tt.routes_[r_id];
 
@@ -85,7 +88,7 @@ inline void update_route(raptor_timetable const& tt,
 
     if (!valid(earliest_trip_id)) {
       earliest_trip_id =
-          get_earliest_trip(tt, route, prev_arrivals, r_stop_offset);
+          get_earliest_trip<Config>(tt, route, prev_arrivals, r_stop_offset);
       continue;
     }
 
@@ -111,11 +114,12 @@ inline void update_route(raptor_timetable const& tt,
     auto const previous_k_arrival = prev_arrivals[stop_id];
     if (previous_k_arrival <= stop_time.departure_) {
       earliest_trip_id =
-          get_earliest_trip(tt, route, prev_arrivals, r_stop_offset);
+          get_earliest_trip<Config>(tt, route, prev_arrivals, r_stop_offset);
     }
   }
 }
 
+template<typename Config>
 inline void update_footpaths(raptor_timetable const& tt,
                              arrivals& current_round,
                              earliest_arrivals const& ea,
@@ -157,9 +161,9 @@ inline void update_footpaths(raptor_timetable const& tt,
 
 }
 
-inline void invoke_cpu_raptor(raptor_query const& query, 
-                              raptor_statistics&,
-                              raptor_schedule const& raptor_sched) {
+template<typename Config>
+inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
+                              const raptor_schedule& raptor_sched) {
   auto const& tt = raptor_sched.timetable_;
 
   auto& result = *query.result_;
@@ -168,7 +172,7 @@ inline void invoke_cpu_raptor(raptor_query const& query,
   mark_store station_marks(tt.stop_count());
   mark_store route_marks(tt.route_count());
 
-  init_arrivals(result, query, raptor_sched, station_marks);
+  init_arrivals<Config>(result, query, raptor_sched, station_marks);
 
   for (raptor_round round_k = 1; round_k < max_round_k; ++round_k) {
     bool any_marked = false;
@@ -190,17 +194,16 @@ inline void invoke_cpu_raptor(raptor_query const& query,
     for (route_id r_id = 0; r_id < tt.route_count(); ++r_id) {
       if (!route_marks.marked(r_id)) { continue; }
 
-      update_route(tt, r_id, 
+      update_route<Config>(tt, r_id,
                    result[round_k - 1], 
                    result[round_k], 
                    ea,
-                   query.target_,
                    station_marks);
     }
 
     route_marks.reset();
 
-    update_footpaths(tt, result[round_k], ea, station_marks);
+    update_footpaths<Config>(tt, result[round_k], ea, station_marks);
   }
 }
 

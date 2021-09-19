@@ -12,14 +12,14 @@ struct raptor_result {
   raptor_result() = delete;
   raptor_result(raptor_result const&) = delete;
 
-  raptor_result(station_id const stop_count) : stop_count_(stop_count) {
-    size_t const bytes = stop_count * sizeof(motis::time) * max_round_k;
+  explicit raptor_result(int const arrival_times) /*: stop_count_(stop_count)*/ {
+    size_t const bytes = arrival_times * sizeof(motis::time) * max_round_k;
 
     cudaMallocHost(&result_.front(), bytes);
     std::memset(result_.front(), 0xFF, bytes);
 
     for (auto k = 1; k < max_round_k; ++k) {
-      result_[k] = result_[k - 1] + stop_count_;
+      result_[k] = result_[k - 1] + arrival_times;
     }
   }
 
@@ -32,7 +32,7 @@ struct raptor_result {
     return result_[index];
   }
 
-  station_id stop_count_;
+  //station_id stop_count_;
   std::array<arrivals, max_round_k> result_;
 };
 

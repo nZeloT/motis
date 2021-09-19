@@ -1,18 +1,12 @@
 #include "motis/raptor/raptor.h"
 
-#include "boost/program_options.hpp"
-
 #include "motis/module/message.h"
 
-#include "motis/raptor/get_raptor_query.h"
 #include "motis/raptor/get_raptor_schedule.h"
+
 #include "motis/raptor/gpu/get_gpu_timetable.h"
 
-#include "motis/bootstrap/module_settings.h"
-
 #include "utl/to_vec.h"
-
-#include "motis/raptor-core/raptor_query.h"
 
 #include "motis/core/common/timing.h"
 #include "motis/core/schedule/schedule.h"
@@ -26,7 +20,6 @@
 #include "motis/raptor/raptor_search.h"
 
 #include "motis/raptor/gpu/copy_timetable.cuh"
-#include "motis/raptor/gpu/gpu_raptor.cuh"
 #include "motis/raptor/gpu/device_utils.h"
 
 namespace p = std::placeholders;
@@ -61,19 +54,18 @@ void raptor::init(motis::module::registry& reg) {
   d_gtt_ = copy_timetable_to_device(h_gtt_);
 
   auto const& cpu = [&](msg_ptr const& msg) {
-    return route_generic<decltype(cpu_raptor), raptor_query>(msg, cpu_raptor);
+    return route_generic(msg, implementation_type::CPU);
   };
 
   auto const& gpu = [&](msg_ptr const& msg) {
-    return route_generic<decltype(gpu_raptor), d_query>(msg, gpu_raptor);
+    return route_generic(msg, implementation_type::GPU);
   };
   auto const& hy = [&](msg_ptr const& msg) {
-    return route_generic<decltype(hybrid_raptor), d_query>(msg, hybrid_raptor);
+    return route_generic(msg, implementation_type::HYBRID);
   };
 
   auto const& cluster = [&](msg_ptr const& msg) {
-    return route_generic<decltype(cluster_raptor), d_query>(msg,
-                                                            cluster_raptor);
+    return route_generic(msg, implementation_type::CLUSTER);
   };
 
   reg.register_op("/raptor_cpu", cpu);
@@ -88,17 +80,16 @@ void raptor::init(motis::module::registry& reg) {
   ::set_device(prefs);
 }
 
-template <typename RaptorFun, typename Query>
 msg_ptr raptor::route_generic(msg_ptr const& msg,
-                              RaptorFun const& raptor_search) {
+                              implementation_type impl_type) {
+
   auto const req = motis_content(RoutingRequest, msg);
   auto const& sched = get_sched();
 
   raptor_statistics stats;
-  auto q = get_query<Query>(req, sched, raptor_sched_);
 
   MOTIS_START_TIMING(total_calculation_time);
-  auto const& js = raptor_search(q, stats, sched, raptor_sched_);
+  auto const& js = raptor_dispatch(stats, sched, raptor_sched_, impl_type, req);
   stats.total_calculation_time_ = MOTIS_TIMING_MS(total_calculation_time);
 
   return make_response(js, req, stats);
