@@ -9,6 +9,6 @@ namespace motis::raptor {
 
 using Default = config<traits<trait_nop>, filter<>>;
 
-using OccupancyOnly = config<traits<trait_occupancy<trait_nop>>, filter<>>;
+using OccupancyOnly = config<traits<trait_max_occupancy<trait_nop>>, filter<>>;
 
 }  // namespace motis::raptor

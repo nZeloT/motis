@@ -1,30 +1,49 @@
 #pragma once
 
 #include <cstdint>
-#include <optional>
+#include <tuple>
 
 namespace motis::raptor {
 
 constexpr uint8_t max_occupancy = 2;
 
-template<typename NestedTrait>
-struct trait_occupancy {
+template <typename NestedTrait>
+struct trait_max_occupancy {
 
-  template <typename Timetable>
-  static int get_arrival_time_idx(Timetable const& tt, int arr_time_idx,
-                           int stop_time_idx) {
-    int dimension_value = tt.stop_occupancy_[stop_time_idx].inbound_occupancy_;
-    int dimension_idx   =  dimension_value * size();
+  template <typename Timetable, typename StopTime, typename TimeVal>
+  static std::tuple<TimeVal, bool> check_and_propagate(
+      TimeVal*& arrivals, int arrivals_idx, Timetable const& tt,
+      StopTime const& stop_time, int stop_time_idx) {
 
-    //innermost NestedTrait holds the final value and returns it up the chain
-    return NestedTrait::get_arrival_time_idx(tt, arr_time_idx + dimension_idx,
-                                             stop_time_idx);
+    auto const dimension_size = size();
 
+    int current_occupancy_value =
+        tt.stop_occupancy_[stop_time_idx].inbound_occupancy_;
+
+    // as we are doing max occupancy we need to check
+    // whether this trip with occupancy o gives better arrival times
+    // for connections with max_occupancy >= o
+    // this possibly leads to updates from min_occupancy up to max_occupancy
+    // which can be costly
+    auto r_value = std::make_tuple(std::numeric_limits<TimeVal>::max(), false);
+    for (int occupancy = current_occupancy_value; occupancy <= max_occupancy;
+         ++occupancy) {
+      auto const r = NestedTrait::check_and_propagate(
+          arrivals, arrivals_idx + (occupancy * dimension_size), tt, stop_time,
+          stop_time_idx);
+
+      //merge results into return value;
+      // first time gives the minimal overall arrival time used during this update
+      // and second gives an indication whether there was an update at all
+      r_value = std::make_tuple(
+          std::min(std::get<0>(r_value), std::get<0>(r)),
+          std::get<1>(r_value) || std::get<1>(r));
+    }
+
+    return r_value;
   }
 
-  inline static int size() {
-    return (max_occupancy+1) * NestedTrait::size();
-  }
+  inline static int size() { return (max_occupancy + 1) * NestedTrait::size(); }
 };
 
-}
+}  // namespace motis::raptor

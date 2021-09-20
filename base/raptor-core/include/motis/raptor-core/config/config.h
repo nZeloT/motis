@@ -1,14 +1,18 @@
 #pragma once
 
+#include <tuple>
+
 namespace motis::raptor {
 
 template <typename Trait, typename Filter>
 struct config {
 
-  template <typename Timetable>
-  static int get_arrival_time_idx(Timetable const& tt, int stop_idx,
-                                  int stop_time_idx) {
-    return Trait::get_arrival_time_idx(tt, stop_idx, stop_time_idx);
+  template <typename Timetable, typename StopTime, typename TimeVal>
+  static std::tuple<TimeVal, bool> check_and_propagate(
+      TimeVal*& arrivals, int arrivals_idx, Timetable const& tt,
+      StopTime const& stop_time, int stop_time_idx) {
+    return Trait::check_and_propagate(arrivals, arrivals_idx, tt, stop_time,
+                                      stop_time_idx);
   }
 
   static int trait_size() { return Trait::size(); }
@@ -19,4 +23,4 @@ struct config {
   }
 };
 
-}
+}  // namespace motis::raptor
