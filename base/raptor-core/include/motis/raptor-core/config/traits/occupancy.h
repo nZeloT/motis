@@ -18,7 +18,7 @@ struct trait_max_occupancy {
     auto const dimension_size = size();
 
     int current_occupancy_value =
-        tt.stop_occupancy_[stop_time_idx].inbound_occupancy_;
+        tt.stop_occupancies_[stop_time_idx].inbound_occupancy_;
 
     // as we are doing max occupancy we need to check
     // whether this trip with occupancy o gives better arrival times

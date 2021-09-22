@@ -90,6 +90,7 @@ msg_ptr raptor::route_generic(msg_ptr const& msg,
 
   MOTIS_START_TIMING(total_calculation_time);
   auto const& js = raptor_dispatch(stats, sched, raptor_sched_, impl_type, req);
+  MOTIS_STOP_TIMING(total_calculation_time);
   stats.total_calculation_time_ = MOTIS_TIMING_MS(total_calculation_time);
 
   return make_response(js, req, stats);

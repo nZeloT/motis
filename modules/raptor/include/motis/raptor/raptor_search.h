@@ -52,10 +52,12 @@ inline std::vector<journey> raptor_gen(Query& q, raptor_statistics& stats,
 
     MOTIS_START_TIMING(raptor_time);
     raptor_search(q);
+    MOTIS_STOP_TIMING(raptor_time);
     stats.raptor_time_ = MOTIS_TIMING_MS(raptor_time);
 
     MOTIS_START_TIMING(rec_timing);
     reconstructor.add(q.source_time_begin_, *q.result_);
+    MOTIS_STOP_TIMING(rec_timing);
     stats.rec_time_ = MOTIS_TIMING_US(rec_timing);
 
     return reconstructor.get_journeys();
@@ -70,10 +72,12 @@ inline std::vector<journey> raptor_gen(Query& q, raptor_statistics& stats,
   q.source_time_begin_ = q.source_time_end_ + 1;
   MOTIS_START_TIMING(plus_one_time);
   raptor_search(q);
+  MOTIS_STOP_TIMING(plus_one_time);
   stats.raptor_time_ += MOTIS_TIMING_US(plus_one_time);
 
   MOTIS_START_TIMING(plus_one_rec_time);
   reconstructor.add(q.source_time_begin_, *q.result_);
+  MOTIS_STOP_TIMING(plus_one_rec_time);
   stats.rec_time_ += MOTIS_TIMING_US(plus_one_rec_time);
 
   for (auto dep_it = upper; dep_it != lower; --dep_it) {
@@ -82,10 +86,12 @@ inline std::vector<journey> raptor_gen(Query& q, raptor_statistics& stats,
 
     MOTIS_START_TIMING(raptor_time);
     raptor_search(q);
+    MOTIS_STOP_TIMING(raptor_time);
     stats.raptor_time_ += MOTIS_TIMING_US(raptor_time);
 
     MOTIS_START_TIMING(rec_timing);
     reconstructor.add(q.source_time_begin_, *q.result_);
+    MOTIS_STOP_TIMING(rec_timing);
     stats.rec_time_ += MOTIS_TIMING_US(rec_timing);
   }
 

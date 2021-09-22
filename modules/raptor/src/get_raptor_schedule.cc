@@ -44,8 +44,6 @@ std::vector<stop_occupancy> get_stop_occupancies_from_lcons(
   stop_occupancies[0].inbound_occupancy_ = 0;
 
   for (auto idx = 1; idx < stop_count; ++idx) {
-    auto const& lcon = lcons[idx];
-
     stop_occupancies[idx].inbound_occupancy_ = lcons[idx - 1].lcon_->occupancy_;
   }
 

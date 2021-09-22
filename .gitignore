@@ -26,7 +26,7 @@ stats.csv
 tracking-in-messages.txt
 gmon.out
 /bikesharing*
-config.ini
+config*.ini
 /eval
 *.mdb
 *.mdb-lock
@@ -39,3 +39,5 @@ callgrind.out.*
 *.callgrind
 /.clangd
 /compile_commands.json
+/data*
+/gtfs_tools

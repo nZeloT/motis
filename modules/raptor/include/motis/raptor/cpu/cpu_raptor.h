@@ -166,7 +166,7 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
 template <typename Config>
 inline void update_footpaths(raptor_timetable const& tt,
                              arrivals& current_round,
-                             earliest_arrivals const& ea,
+                             arrivals const& current_round_c,
                              mark_store& station_marks) {
 
   // How far do we need to skip until the next stop is reached?
@@ -182,32 +182,34 @@ inline void update_footpaths(raptor_timetable const& tt,
 
       auto const& footpath = tt.footpaths_[current_index];
 
-      // TODO: from here onwards repeat this step for all trait dimensions along
-      //       this stop
+      for (int s_trait_offset = 0; s_trait_offset < config_trait_size;
+           ++s_trait_offset) {
 
-      // TODO: what to do about the earliest arrival array?
+        //TODO: how to determine domination of certain journeys
+        //      and therewith skip certain updates
+        //      is this even possible?
 
-      // if (arrivals[round_k][stop_id] == invalid_time) { continue; }
-      // if (earliest_arrivals[stop_id] == invalid_time) { continue; }
-      if (!valid(ea[stop_id])) {
-        continue;
-      }
+        // if (arrivals[round_k][stop_id] == invalid_time) { continue; }
+        // if (earliest_arrivals[stop_id] == invalid_time) { continue; }
+        if (!valid(current_round_c[stop_id + s_trait_offset])) {
+          continue;
+        }
 
-      // there is no triangle inequality in the footpath graph!
-      // we cannot use the normal arrival values,
-      // but need to use the earliest arrival values as read
-      // and write to the normal arrivals,
-      // otherwise it is possible that two footpaths
-      // are chained together
-      motis::time const new_arrival = ea[stop_id] + footpath.duration_;
+        // there is no triangle inequality in the footpath graph!
+        // we cannot use the normal arrival values,
+        // but need to use the earliest arrival values as read
+        // and write to the normal arrivals,
+        // otherwise it is possible that two footpaths
+        // are chained together
+        motis::time const new_arrival =
+            current_round_c[stop_id + s_trait_offset] + footpath.duration_;
 
-      motis::time to_earliest_arrival = ea[footpath.to_];
-      motis::time to_arrival = current_round[footpath.to_];
+        motis::time to_arrival = current_round[footpath.to_];
 
-      auto const min = std::min(to_arrival, to_earliest_arrival);
-      if (new_arrival < min) {
-        station_marks.mark(footpath.to_);
-        current_round[footpath.to_] = new_arrival;
+        if (new_arrival < to_arrival) {
+          station_marks.mark(footpath.to_);
+          current_round[footpath.to_] = new_arrival;
+        }
       }
     }
   }
@@ -222,8 +224,12 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
 
   // TODO: check whether the ea array should also be initialized at
   //        ea[q.source_]
+  // TODO: also check whether one of prev_ea or ea can be eliminated
   earliest_arrivals prev_ea(tt.stop_count(), invalid<motis::time>);
   earliest_arrivals ea(tt.stop_count(), invalid<motis::time>);
+
+  std::vector<motis::time> current_round_arrivals(tt.stop_count() *
+                                                  Config::trait_size());
 
   mark_store station_marks(tt.stop_count());
   mark_store route_marks(tt.route_count());
@@ -261,7 +267,11 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
 
     route_marks.reset();
 
-    update_footpaths<Config>(tt, result[round_k], ea, station_marks);
+    std::memcpy(current_round_arrivals.data(), result[round_k],
+                current_round_arrivals.size() * sizeof(motis::time));
+
+    update_footpaths<Config>(tt, result[round_k], current_round_arrivals.data(),
+                             station_marks);
 
     // copy earliest arrival times
     std::memcpy(prev_ea.data(), ea.data(),
