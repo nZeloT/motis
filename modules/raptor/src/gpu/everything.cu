@@ -6,6 +6,10 @@
 #include "motis/raptor/gpu/hybrid_raptor.cuh"
 #include "motis/raptor/gpu/cluster_raptor.cuh"
 
+#include <cstdio>
+#include <iostream>
+#include <iomanip>
+
 namespace motis {
 
 void fetch_result_from_device(d_query& dq) {
@@ -21,6 +25,15 @@ void fetch_result_from_device(d_query& dq) {
                dq.stop_count_ * sizeof(global_mem_time),
                cudaMemcpyDeviceToHost);                       cc();
   }
+
+//  for(int round_k = 0; round_k < max_round_k; ++round_k) {
+//    std::cout << "Results Round " << +round_k << std::endl;
+//    for (int i = 0; i < dq.stop_count_; ++i) {
+//      if (valid(result[round_k][i]))
+//        std::cout << "Stop Id: " << std::setw(7) << +i << " -> " << std::setw(6)
+//                  << +result[round_k][i] << std::endl;
+//    }
+//  }
 
   #else
 
