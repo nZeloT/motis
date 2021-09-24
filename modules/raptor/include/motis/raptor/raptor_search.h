@@ -39,12 +39,12 @@ inline auto get_departure_range(
   return std::pair(lower, upper);
 }
 
-template <typename RaptorFun, typename Query>
+template <typename Config, typename RaptorFun, typename Query>
 inline std::vector<journey> raptor_gen(Query& q, raptor_statistics& stats,
                                        schedule const& sched,
                                        raptor_schedule const& raptor_sched,
                                        RaptorFun const& raptor_search) {
-  reconstructor reconstructor(q, sched, raptor_sched);
+  reconstructor<Config> reconstructor(q, sched, raptor_sched);
 
   // We have a ontrip query, just a single raptor query is needed
   if (q.source_time_begin_ == q.source_time_end_) {
@@ -121,13 +121,13 @@ inline std::vector<journey> raptor_dispatch(
         auto f = [&stats, &raptor_sched](raptor_query const& q) {
           invoke_cpu_raptor<OccupancyOnly>(q, stats, raptor_sched);
         };
-        return raptor_gen(q, stats, sched, raptor_sched, f);
+        return raptor_gen<OccupancyOnly>(q, stats, sched, raptor_sched, f);
       } else if(type == ST::SearchType_Default){
         auto q = get_query<raptor_query, Default>(req, sched, raptor_sched);
         auto f = [&stats, &raptor_sched](raptor_query const& q) {
           invoke_cpu_raptor<Default>(q, stats, raptor_sched);
         };
-        return raptor_gen(q, stats, sched, raptor_sched, f);
+        return raptor_gen<Default>(q, stats, sched, raptor_sched, f);
       }else{
         throw std::system_error{error::not_implemented};
       }
@@ -136,19 +136,19 @@ inline std::vector<journey> raptor_dispatch(
 #ifdef MOTIS_CUDA
     case implementation_type::GPU: {
       auto q = get_query<d_query, Default>(req, sched, raptor_sched);
-      return raptor_gen(q, stats, sched, raptor_sched,
+      return raptor_gen<Default>(q, stats, sched, raptor_sched,
                         std::function(invoke_gpu_raptor));
     }
 
     case implementation_type::HYBRID: {
       auto q = get_query<d_query, Default>(req, sched, raptor_sched);
-      return raptor_gen(q, stats, sched, raptor_sched,
+      return raptor_gen<Default>(q, stats, sched, raptor_sched,
                         std::function(invoke_hybrid_raptor));
     }
 
     case implementation_type::CLUSTER: {
       auto q = get_query<d_query, Default>(req, sched, raptor_sched);
-      return raptor_gen(q, stats, sched, raptor_sched,
+      return raptor_gen<Default>(q, stats, sched, raptor_sched,
                         std::function(invoke_cluster_raptor));
     }
 #endif
