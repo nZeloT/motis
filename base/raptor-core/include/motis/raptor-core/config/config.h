@@ -15,6 +15,12 @@ struct config {
                                       stop_time_idx);
   }
 
+  template <typename TimeVal>
+  static void propagate_across_traits(TimeVal*& arrivals, int arrivals_idx,
+                                      TimeVal const& propagate) {
+    Trait::propagate_across_traits(arrivals, arrivals_idx, propagate);
+  }
+
   static int trait_size() { return Trait::size(); }
 
   template <typename Timetable>
