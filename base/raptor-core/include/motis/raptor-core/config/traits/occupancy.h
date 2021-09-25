@@ -8,7 +8,13 @@ namespace motis::raptor {
 constexpr uint8_t max_occupancy = 2;
 
 template <typename NestedTrait>
+struct trait_data_max_occupancy : public NestedTrait::Data {
+  uint8_t max_occupancy_;
+};
+
+template <typename NestedTrait>
 struct trait_max_occupancy {
+  using Data = trait_data_max_occupancy<NestedTrait>;
 
   inline static int size() { return (max_occupancy + 1) * NestedTrait::size(); }
 
@@ -47,31 +53,26 @@ struct trait_max_occupancy {
 
   // check if journey dominates candidate in max_occupancy
   template <typename Journey, typename Candidate>
-  static bool dominates(Journey const& journey, Candidate const& candidate,
-                        int trait_val_offset) {
+  static bool dominates(Journey const& journey, Candidate const& candidate) {
     // 1. determine candidate max_occupancy
-    auto const candidate_max_occ =
-        static_cast<uint8_t>(candidate.trait_values_[trait_val_offset]);
+    auto const candidate_max_occ = candidate.trait_data_.max_occupancy_;
     // 2. compare against journeys max_occupancy
     auto const dominates = journey.occupancy_max_ < candidate_max_occ;
     // 3. return result konjunction
     return dominates &&
-           NestedTrait::dominates(journey, candidate, trait_val_offset + 1);
+           NestedTrait::dominates(journey, candidate);
   }
 
-  template <typename ArrivalIndex>
-  inline static std::vector<uint32_t> derive_trait_values(
-      ArrivalIndex const idx) {
+  template <typename ArrivalIdx>
+  inline static void derive_trait_values(Data& data, ArrivalIdx const idx) {
     auto const dimension_size = NestedTrait::size();
     // Trait value = Trait index in our case
     // because value and index align
     uint32_t const trait_value = idx / dimension_size;
     uint32_t const nested_idx = idx % dimension_size;
 
-    std::vector<uint32_t> values = NestedTrait::derive_trait_value(nested_idx);
-    values.emplace(std::begin(values), trait_value);
-
-    return values;
+    data.max_occupancy_ = trait_value;
+    NestedTrait::derive_trait_values(data, nested_idx);
   }
 };
 

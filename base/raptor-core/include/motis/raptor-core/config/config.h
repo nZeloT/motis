@@ -6,6 +6,7 @@ namespace motis::raptor {
 
 template <typename Trait, typename Filter>
 struct config {
+  using TraitData = typename Trait::TraitData;
 
   inline static int trait_size() { return Trait::size(); }
 
@@ -40,8 +41,10 @@ struct config {
   //expecting that the stop_idx is already subtracted and the given index
   //only specifies the shifts within the traits
   template<typename ArrivalIndex>
-  inline static std::vector<uint32_t> derive_trait_values(ArrivalIndex const idx) {
-    return Trait::derive_trait_value(idx);
+  inline static TraitData derive_trait_values(ArrivalIndex const idx) {
+    TraitData data{};
+    Trait::derive_trait_values(data, idx);
+    return data;
   }
 
   template <typename Timetable>

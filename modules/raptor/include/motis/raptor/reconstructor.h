@@ -19,24 +19,24 @@ using namespace motis::routing::output;
 
 template<typename Config>
 struct reconstructor {
+  using TraitData = typename Config::TraitData;
 
   struct candidate {
     candidate() = delete;
     candidate(motis::time const dep, motis::time const arr, transfers const t,
-              std::vector<uint32_t> trait_vals,
+              TraitData trait_data,
               bool const ends_with_footpath)
         : departure_(dep),
           arrival_(arr),
           transfers_(t),
-          trait_values_{std::move(trait_vals)},
+          trait_data_{std::move(trait_data)},
           ends_with_footpath_(ends_with_footpath) {}
     motis::time departure_;
     motis::time arrival_;
     uint8_t transfers_;
     bool ends_with_footpath_;
 
-    //TODO check back on specific nested type
-    std::vector<uint32_t> trait_values_;
+    TraitData trait_data_;
   };
 
   std::string to_string(candidate const& c) {
