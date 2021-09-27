@@ -185,7 +185,7 @@ inline void update_footpaths(raptor_timetable const& tt,
                              earliest_arrivals& ea, mark_store& station_marks) {
 
   // How far do we need to skip until the next stop is reached?
-  auto const config_trait_size = Config::trait_size();
+  auto const trait_size = Config::trait_size();
 
   for (station_id stop_id = 0; stop_id < tt.stop_count(); ++stop_id) {
 
@@ -197,8 +197,12 @@ inline void update_footpaths(raptor_timetable const& tt,
 
       auto const& footpath = tt.footpaths_[current_index];
 
-      for (int s_trait_offset = 0; s_trait_offset < config_trait_size;
+      for (int s_trait_offset = 0; s_trait_offset < trait_size;
            ++s_trait_offset) {
+        auto const from_arr_idx =
+            Config::get_arrival_idx(stop_id, s_trait_offset);
+        auto const to_arr_idx =
+            Config::get_arrival_idx(footpath.to_, s_trait_offset);
 
         // TODO: how to determine domination of certain journeys
         //       and therewith skip certain updates
@@ -206,7 +210,7 @@ inline void update_footpaths(raptor_timetable const& tt,
 
         // if (arrivals[round_k][stop_id] == invalid_time) { continue; }
         // if (earliest_arrivals[stop_id] == invalid_time) { continue; }
-        if (!valid(current_round_c[stop_id + s_trait_offset])) {
+        if (!valid(current_round_c[from_arr_idx])) {
           continue;
         }
 
@@ -217,15 +221,15 @@ inline void update_footpaths(raptor_timetable const& tt,
         // otherwise it is possible that two footpaths
         // are chained together
         motis::time const new_arrival =
-            current_round_c[stop_id + s_trait_offset] + footpath.duration_;
+            current_round_c[from_arr_idx] + footpath.duration_;
 
-        motis::time to_arrival = current_round[footpath.to_];
+        motis::time to_arrival = current_round[to_arr_idx];
 
         if (new_arrival < to_arrival) {
           station_marks.mark(footpath.to_);
-          current_round[footpath.to_] = new_arrival;
+          current_round[to_arr_idx] = new_arrival;
 
-          if (current_round[footpath.to_] < ea[footpath.to_]) {
+          if (current_round[to_arr_idx] < ea[footpath.to_]) {
             ea[footpath.to_] = new_arrival;
           }
         }

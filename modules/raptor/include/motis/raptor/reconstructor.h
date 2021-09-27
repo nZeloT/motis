@@ -236,6 +236,8 @@ struct reconstructor {
       j.occupancy_max_ =
           std::max_element(std::begin(transports_), std::end(transports_),
                            [](auto const& a, auto const& b) -> bool {
+                             if (a.con_ == nullptr) return true;
+                             if (b.con_ == nullptr) return false;
                              return (a.con_->occupancy_ < b.con_->occupancy_);
                            })
               ->con_->occupancy_;
@@ -249,9 +251,8 @@ struct reconstructor {
 
   bool journey_ends_with_footpath(candidate const c,
                                   raptor_result const& result) {
-    auto const tuple =
-        get_previous_station(target_, c.arrival_, c.transfers_ + 1,
-                             c.trait_offset_, result);
+    auto const tuple = get_previous_station(
+        target_, c.arrival_, c.transfers_ + 1, c.trait_offset_, result);
     return !valid(std::get<0>(tuple));
   }
 
@@ -292,8 +293,9 @@ struct reconstructor {
       }
 
       arrival_station = previous_station;
-      station_arrival =
-          result[result_idx - 1][arrival_station + c.trait_offset_];
+      auto const arr_idx =
+          Config::get_arrival_idx(arrival_station, c.trait_offset_);
+      station_arrival = result[result_idx - 1][arr_idx];
     }
 
     // Add last footpath if necessary
@@ -347,8 +349,7 @@ struct reconstructor {
         }
 
         auto const board_station = get_board_station_for_trip(
-            r_id, arrival_trip, result, result_idx - 1,
-            trait_offset, offset);
+            r_id, arrival_trip, result, result_idx - 1, trait_offset, offset);
 
         if (valid(board_station)) {
           return {board_station, r_id, arrival_trip, offset};
@@ -396,7 +397,8 @@ struct reconstructor {
       auto const sti = first_stop_times_index + stop_offset;
       auto const departure = timetable_.stop_times_[sti].departure_;
 
-      if (result[result_idx][station_id + trait_offset] <= departure) {
+      auto const arr_idx = Config::get_arrival_idx(station_id, trait_offset);
+      if (result[result_idx][arr_idx] <= departure) {
         return station_id;
       }
     }

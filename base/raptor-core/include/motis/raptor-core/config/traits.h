@@ -36,7 +36,7 @@ struct traits {
                                              TimeVal const& propagate) {
     auto const size = traits<Trait>::size();
     for (int t_offset = 0; t_offset < size; ++t_offset) {
-      arrivals[arrivals_idx + t_offset] = propagate;
+      arrivals[(arrivals_idx * size) + t_offset] = propagate;
     }
   }
 };
