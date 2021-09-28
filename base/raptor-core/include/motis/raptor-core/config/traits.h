@@ -8,12 +8,15 @@ struct traits {
 
   inline static int size() { return Trait::size(); }
 
-  template <typename Timetable, typename StopTime, typename TimeVal>
+  template <typename Timetable, typename TimeVal>
   inline static std::tuple<TimeVal, bool> check_and_propagate(
-      TimeVal* arrivals, int arrivals_idx, Timetable const& tt,
-      StopTime const& stop_time, int stop_time_idx) {
-    return Trait::check_and_propagate(arrivals, arrivals_idx, tt, stop_time,
-                                      stop_time_idx);
+      TimeVal* const& prev_arrival, TimeVal* curr_arrival, Timetable const& tt,
+      int const r_id, int const t_id, int const departure_stop_id,
+      int const current_stop_id, int const departure_arr_idx,
+      int const current_arr_idx, int const stop_time_idx) {
+    return Trait::check_and_propagate(
+        prev_arrival, curr_arrival, tt, r_id, t_id, departure_stop_id,
+        current_stop_id, departure_arr_idx, current_arr_idx, stop_time_idx);
   }
 
   // check if a candidate journey dominates a given journey by checking on the
@@ -58,16 +61,30 @@ struct trait_nop {
   template <typename ArrivalIdx>
   inline static void derive_trait_values(Data& _1, ArrivalIdx const _2) {}
 
-  template <typename Timetable, typename StopTime, typename TimeVal>
+  template <typename Timetable, typename TimeVal>
   inline static std::tuple<TimeVal, bool> check_and_propagate(
-      TimeVal*& arrivals, int arrivals_idx, Timetable const& _1,
-      StopTime const& stop_time, int _2) {
+      TimeVal* const& prev_arrival, TimeVal* curr_arrival, Timetable const& tt,
+      int const r_id, int const t_id, int const departure_stop_id,
+      int const current_stop_id, int const departure_arr_idx,
+      int const current_arr_idx, int const stop_time_idx) {
 
-    auto const current_arrival_time = arrivals[arrivals_idx];
-    auto const current_stop_arrival = stop_time.arrival_;
+    // 1. check if the departure station has a valid arrival time on the
+    //    previous round with the given trait offset (already added to the
+    //    departure_arr_idx)
+    auto const departure_arr_time = prev_arrival[departure_arr_idx];
+    if(departure_arr_time == std::numeric_limits<TimeVal>::max()){
+      return std::make_tuple(std::numeric_limits<TimeVal>::max(), false);
+    }
+
+    // 2. there exists a valid arrival time on the departure station with the
+    //    given trait offset; now check whether the new arrival time at the
+    //    current stop is below the current bound
+
+    auto const current_arrival_time = curr_arrival[current_arr_idx];
+    auto const current_stop_arrival = tt.stop_times_[stop_time_idx].arrival_;
 
     if (current_stop_arrival < current_arrival_time) {
-      arrivals[arrivals_idx] = current_stop_arrival;
+      curr_arrival[current_arr_idx] = current_stop_arrival;
 
       return std::make_tuple(current_stop_arrival, true);
     } else {

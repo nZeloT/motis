@@ -18,10 +18,12 @@ struct trait_max_occupancy {
 
   inline static int size() { return (max_occupancy + 1) * NestedTrait::size(); }
 
-  template <typename Timetable, typename StopTime, typename TimeVal>
+  template <typename Timetable, typename TimeVal>
   static std::tuple<TimeVal, bool> check_and_propagate(
-      TimeVal*& arrivals, int arrivals_idx, Timetable const& tt,
-      StopTime const& stop_time, int stop_time_idx) {
+      TimeVal* const& prev_arrival, TimeVal* curr_arrival, Timetable const& tt,
+      int const r_id, int const t_id, int const departure_stop_id,
+      int const current_stop_id, int const departure_arr_idx,
+      int const current_arr_idx, int const stop_time_idx) {
 
     auto const dimension_size = NestedTrait::size();
 
@@ -36,16 +38,18 @@ struct trait_max_occupancy {
     auto r_value = std::make_tuple(std::numeric_limits<TimeVal>::max(), false);
     for (int occupancy = current_occupancy_value; occupancy <= max_occupancy;
          ++occupancy) {
+      auto const occupancy_trait_shift = occupancy * dimension_size;
       auto const r = NestedTrait::check_and_propagate(
-          arrivals, arrivals_idx + (occupancy * dimension_size), tt, stop_time,
-          stop_time_idx);
+          prev_arrival, curr_arrival, tt, r_id, t_id, departure_stop_id,
+          current_stop_id, departure_arr_idx + occupancy_trait_shift,
+          current_arr_idx + occupancy_trait_shift, stop_time_idx);
 
       // merge results into return value;
       //  first time gives the minimal overall arrival time used during this
       //  update and second gives an indication whether there was an update at
       //  all
-      r_value = std::make_tuple(std::min(std::get<0>(r_value), std::get<0>(r)),
-                                std::get<1>(r_value) || std::get<1>(r));
+      std::get<0>(r_value) = std::min(std::get<0>(r_value), std::get<0>(r));
+      std::get<1>(r_value) = std::get<1>(r_value) || std::get<1>(r);
     }
 
     return r_value;

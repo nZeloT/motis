@@ -115,20 +115,23 @@ inline void print_route_stop_ids(raptor_timetable const& tt, route_id route_id,
 
 template <typename Config>
 inline void update_route(raptor_timetable const& tt, route_id const r_id,
-                         earliest_arrivals const& prev_ea,
-                         arrivals& current_round, earliest_arrivals& ea,
+                         arrivals& previous_round, arrivals& current_round,
+                         earliest_arrivals& prev_ea, earliest_arrivals& ea,
                          mark_store& station_marks) {
 
   auto const& route = tt.routes_[r_id];
   // print_route_stop_ids(tt, r_id, route);
 
   trip_count earliest_trip_id = invalid<trip_count>;
+  station_id departure_id = invalid<station_id>;
   for (station_id r_stop_offset = 0; r_stop_offset < route.stop_count_;
        ++r_stop_offset) {
 
     if (!valid(earliest_trip_id)) {
       earliest_trip_id =
           get_earliest_trip<Config>(tt, route, prev_ea, r_stop_offset);
+      departure_id =
+          tt.route_stops_[route.index_to_route_stops_ + r_stop_offset];
       continue;
     }
 
@@ -152,7 +155,8 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
       auto const& stop_time = tt.stop_times_[current_stop_time_idx];
 
       auto [min_arrival_update, mark_station] = Config::check_and_propagate(
-          current_round, stop_id, tt, stop_time, current_stop_time_idx);
+          previous_round, current_round, tt, r_id, trip_id, departure_id,
+          stop_id, current_stop_time_idx);
 
       if (mark_station) {
         station_marks.mark(stop_id);
@@ -172,8 +176,13 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
                        (earliest_trip_id * route.stop_count_) + r_stop_offset];
     auto const previous_k_arrival = prev_ea[stop_id];
     if (previous_k_arrival <= stop_time.departure_) {
+      auto old_earliest_trip_id = earliest_trip_id;
       earliest_trip_id =
           get_earliest_trip<Config>(tt, route, prev_ea, r_stop_offset);
+      if (old_earliest_trip_id != earliest_trip_id) {
+        departure_id =
+            tt.route_stops_[route.index_to_route_stops_ + r_stop_offset];
+      }
     }
   }
 }
@@ -244,11 +253,16 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
   auto const& tt = raptor_sched.timetable_;
 
   auto& result = *query.result_;
-  // std::cout << "Received Query: " << std::endl;
-  // std::cout << "Start Station:  " << std::setw(7) << +query.source_ << " -> "
-  //           << std::setw(6) << +query.source_time_begin_ << std::endl;
-  // std::cout << "End Station:    " << std::setw(7) << +query.target_ <<
-  // std::endl;
+  std::cout << "Received Query: " << std::endl;
+  std::cout << "Start Station:  " << std::setw(7) << +query.source_ << " -> "
+            << std::setw(6) << +query.source_time_begin_ << std::endl;
+  std::cout << "End Station:    " << std::setw(7) << +query.target_
+            << std::endl;
+
+  // for(int r_id = 0; r_id < tt.route_count(); ++r_id) {
+  //   auto const route = tt.routes_[r_id];
+  //   print_route_stop_ids(tt, r_id, route);
+  // }
 
   // TODO: check whether the ea array should also be initialized at
   //        ea[q.source_]
@@ -289,8 +303,8 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
         continue;
       }
 
-      update_route<Config>(tt, r_id, prev_ea, result[round_k], ea,
-                           station_marks);
+      update_route<Config>(tt, r_id, result[round_k - 1], result[round_k],
+                           prev_ea, ea, station_marks);
     }
 
     route_marks.reset();
@@ -306,15 +320,20 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
                 prev_ea.size() * sizeof(motis::time));
   }
 
-  // for (int round_k = 0; round_k < max_round_k; ++round_k) {
-  //   std::cout << "Results Round " << +round_k << std::endl;
-  //   for (int i = 0; i < tt.stop_count(); ++i) {
-  //     if (valid(result[round_k][i]))
-  //       std::cout << "Stop Id: " << std::setw(7) << +i << " -> " <<
-  //       std::setw(6)
-  //                 << +result[round_k][i] << std::endl;
-  //   }
-  // }
+  auto const trait_size = Config::trait_size();
+  for (int round_k = 0; round_k < max_round_k; ++round_k) {
+    std::cout << "Results Round " << +round_k << std::endl;
+    for (int i = 0; i < tt.stop_count(); ++i) {
+      for (int j = 0; j < trait_size; ++j) {
+        if (valid(result[round_k][(i * trait_size) + j]))
+          std::cout << "Stop Id: " << std::setw(7) << +i << " -> "
+                    << std::setw(6) << +result[round_k][(i * trait_size) + j]
+                    << "; Arrival Idx: " << std::setw(6)
+                    << +((i * trait_size) + j)
+                    << "; Trait Offset: " << std::setw(4) << +j << std::endl;
+      }
+    }
+  }
 }
 
 }  // namespace motis::raptor
