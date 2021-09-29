@@ -320,20 +320,20 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
                 prev_ea.size() * sizeof(motis::time));
   }
 
-  auto const trait_size = Config::trait_size();
-  for (int round_k = 0; round_k < max_round_k; ++round_k) {
-    std::cout << "Results Round " << +round_k << std::endl;
-    for (int i = 0; i < tt.stop_count(); ++i) {
-      for (int j = 0; j < trait_size; ++j) {
-        if (valid(result[round_k][(i * trait_size) + j]))
-          std::cout << "Stop Id: " << std::setw(7) << +i << " -> "
-                    << std::setw(6) << +result[round_k][(i * trait_size) + j]
-                    << "; Arrival Idx: " << std::setw(6)
-                    << +((i * trait_size) + j)
-                    << "; Trait Offset: " << std::setw(4) << +j << std::endl;
-      }
-    }
-  }
+  //auto const trait_size = Config::trait_size();
+  //for (int round_k = 0; round_k < max_round_k; ++round_k) {
+  //  std::cout << "Results Round " << +round_k << std::endl;
+  //  for (int i = 0; i < tt.stop_count(); ++i) {
+  //    for (int j = 0; j < trait_size; ++j) {
+  //      if (valid(result[round_k][(i * trait_size) + j]))
+  //        std::cout << "Stop Id: " << std::setw(7) << +i << " -> "
+  //                  << std::setw(6) << +result[round_k][(i * trait_size) + j]
+  //                  << "; Arrival Idx: " << std::setw(6)
+  //                  << +((i * trait_size) + j)
+  //                  << "; Trait Offset: " << std::setw(4) << +j << std::endl;
+  //    }
+  //  }
+  //}
 }
 
 }  // namespace motis::raptor

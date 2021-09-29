@@ -24,8 +24,8 @@ struct reconstructor {
   struct candidate {
     candidate() = delete;
     candidate(motis::time const dep, motis::time const arr, transfers const t,
-              int const trait_offset, TraitData trait_data,
-              bool const ends_with_footpath)
+              int const trait_offset,
+              TraitData trait_data, bool const ends_with_footpath)
         : departure_(dep),
           arrival_(arr),
           transfers_(t),
@@ -78,17 +78,17 @@ struct reconstructor {
 
       // also go through all trait dimensions to check for viable solutions
       for (int t_offset = 0; t_offset < trait_size; ++t_offset) {
-        if (!valid(result[round_k][target_ + t_offset])) {
+        auto const arrival_idx = Config::get_arrival_idx(target_, t_offset);
+        if (!valid(result[round_k][arrival_idx])) {
           continue;
         }
 
         auto const tt = raptor_sched_.transfer_times_[target_];
 
         auto trait_vals = Config::derive_trait_values(t_offset);
-        candidate c(departure, result[round_k][target_ + t_offset], round_k - 1,
+        candidate c(departure, result[round_k][arrival_idx], round_k - 1,
                     t_offset, std::move(trait_vals), true);
-        for (; c.arrival_ < result[round_k][target_ + t_offset] + tt;
-             c.arrival_++) {
+        for (; c.arrival_ < result[round_k][arrival_idx] + tt; c.arrival_++) {
           c.ends_with_footpath_ = journey_ends_with_footpath(c, result);
           if (!c.ends_with_footpath_) {
             break;
