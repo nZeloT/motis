@@ -51,7 +51,7 @@ struct trait_nop {
   // giving the neutral element for sizing
   inline static int size() { return 1; }
 
-  // giving the neutral element of the konjunction
+  // giving the neutral element of the conjunction
   template <typename Journey, typename Candidate>
   inline static bool dominates(Journey const& _1, Candidate const& _2) {
     return true;
@@ -77,12 +77,19 @@ struct trait_nop {
     }
 
     // 2. there exists a valid arrival time on the departure station with the
-    //    given trait offset; now check whether the new arrival time at the
-    //    current stop is below the current bound
+    //    given trait offset; now check whether the known departure time is
+    //    lower than the arrival time at the current stop
+    auto const current_stop_arrival = tt.stop_times_[stop_time_idx].arrival_;
+    if(current_stop_arrival <= departure_arr_time) {
+      return std::make_tuple(std::numeric_limits<TimeVal>::max(), false);
+    }
+
+    // 3. there exists a departure station which has an arrival time
+    //    less than the arrival time at the current stop; therefore now
+    //    check whether the new arrival time is lower than the already known
+    //    possible arrival time at this stop
 
     auto const current_arrival_time = curr_arrival[current_arr_idx];
-    auto const current_stop_arrival = tt.stop_times_[stop_time_idx].arrival_;
-
     if (current_stop_arrival < current_arrival_time) {
       curr_arrival[current_arr_idx] = current_stop_arrival;
 
