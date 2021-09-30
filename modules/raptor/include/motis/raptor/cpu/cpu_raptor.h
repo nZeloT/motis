@@ -71,7 +71,7 @@ inline trip_count get_next_trip_id(raptor_route const& route,
   // get first defined earliest trip for the stop in the route
   auto const first_trip_stop_idx = route.index_to_stop_times_;
   auto const last_trip_stop_idx =
-      first_trip_stop_idx + ((route.trip_count_ - 1) * route.stop_count_);
+      first_trip_stop_idx + (route.trip_count_ * route.stop_count_);
 
   auto const next_trip_id = current_trip + 1;
   auto const next_trip_stop_idx =
@@ -315,9 +315,9 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
     update_footpaths<Config>(tt, result[round_k], current_round_arrivals.data(),
                              ea, station_marks);
 
-    // copy earliest arrival times
-    std::memcpy(prev_ea.data(), ea.data(),
-                prev_ea.size() * sizeof(motis::time));
+    std::memset(prev_ea.data(), invalid<motis::time>, prev_ea.size() * sizeof(motis::time));
+    std::memcpy(prev_ea.data(), ea.data(), prev_ea.size() * sizeof(motis::time));
+    std::memset(ea.data(), invalid<motis::time>, ea.size() * sizeof(motis::time));
   }
 
   //auto const trait_size = Config::trait_size();
