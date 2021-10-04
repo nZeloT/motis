@@ -18,7 +18,7 @@ struct config {
   // used during route update to update a arrival time
   // and propagate it along the trait feature accordingly if desired
   template <typename Timetable, typename TimeVal>
-  inline static TimeVal check_and_propagate(
+  inline static std::tuple<TimeVal, bool> check_and_propagate(
       TimeVal* const& prev_arrivals, TimeVal*& curr_arrivals,
       Timetable const& tt, int const r_id, int const t_id,
       int const departure_stop_id, int const current_stop_id,

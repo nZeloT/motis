@@ -156,7 +156,7 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
 
       auto const& stop_time = tt.stop_times_[current_stop_time_idx];
 
-      auto min_arrival_update = Config::check_and_propagate(
+      auto [min_arrival_update, traits_satisfied] = Config::check_and_propagate(
           previous_round, current_round, tt, r_id, trip_id, departure_id,
           stop_id, current_stop_time_idx, departure_stop_time_idx);
 
@@ -168,6 +168,10 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
         // write the earliest arrival time for this stop after this round
         //  as this is a lower bound for the trip search
         ea[stop_id] = min_arrival_update;
+      }
+
+      if(traits_satisfied){
+        break; //we can skip further looping through the trips on this stop
       }
     }
 
@@ -318,25 +322,30 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
     update_footpaths<Config>(tt, result[round_k], current_round_arrivals.data(),
                              ea, station_marks);
 
-    std::memset(prev_ea.data(), invalid<motis::time>, prev_ea.size() * sizeof(motis::time));
-    std::memcpy(prev_ea.data(), ea.data(), prev_ea.size() * sizeof(motis::time));
-    std::memset(ea.data(), invalid<motis::time>, ea.size() * sizeof(motis::time));
+    std::memset(prev_ea.data(), invalid<motis::time>,
+                prev_ea.size() * sizeof(motis::time));
+    std::memcpy(prev_ea.data(), ea.data(),
+                prev_ea.size() * sizeof(motis::time));
+    std::memset(ea.data(), invalid<motis::time>,
+                ea.size() * sizeof(motis::time));
   }
 
-//  auto const trait_size = Config::trait_size();
-//  for (int round_k = 0; round_k < max_round_k; ++round_k) {
-//    std::cout << "Results Round " << +round_k << std::endl;
-//    for (int i = 0; i < tt.stop_count(); ++i) {
-//      for (int j = 0; j < trait_size; ++j) {
-//        if (valid(result[round_k][(i * trait_size) + j]))
-//          std::cout << "Stop Id: " << std::setw(7) << +i << " -> "
-//                    << std::setw(6) << +result[round_k][(i * trait_size) + j]
-//                    << "; Arrival Idx: " << std::setw(6)
-//                    << +((i * trait_size) + j)
-//                    << "; Trait Offset: " << std::setw(4) << +j << std::endl;
-//      }
-//    }
-//  }
+  //  auto const trait_size = Config::trait_size();
+  //  for (int round_k = 0; round_k < max_round_k; ++round_k) {
+  //    std::cout << "Results Round " << +round_k << std::endl;
+  //    for (int i = 0; i < tt.stop_count(); ++i) {
+  //      for (int j = 0; j < trait_size; ++j) {
+  //        if (valid(result[round_k][(i * trait_size) + j]))
+  //          std::cout << "Stop Id: " << std::setw(7) << +i << " -> "
+  //                    << std::setw(6) << +result[round_k][(i * trait_size) +
+  //                    j]
+  //                    << "; Arrival Idx: " << std::setw(6)
+  //                    << +((i * trait_size) + j)
+  //                    << "; Trait Offset: " << std::setw(4) << +j <<
+  //                    std::endl;
+  //      }
+  //    }
+  //  }
 }
 
 }  // namespace motis::raptor

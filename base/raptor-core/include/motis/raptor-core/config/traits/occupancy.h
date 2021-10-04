@@ -19,7 +19,7 @@ struct trait_max_occupancy {
   inline static int size() { return (max_occupancy + 1) * NestedTrait::size(); }
 
   template <typename Timetable, typename TimeVal>
-  static TimeVal check_and_propagate(
+  static std::tuple<TimeVal, bool> check_and_propagate(
       TimeVal* const& prev_arrival, TimeVal* curr_arrival, Timetable const& tt,
       int const r_id, int const t_id, int const departure_stop_id,
       int const current_stop_id, int const departure_arr_idx,
@@ -36,7 +36,8 @@ struct trait_max_occupancy {
     // for connections with max_occupancy >= o
     // this possibly leads to updates from min_occupancy up to max_occupancy
     // which can be costly
-    auto r_value = std::numeric_limits<TimeVal>::max();
+    auto min_arrival_time = std::numeric_limits<TimeVal>::max();
+    auto value_for_max_occ_0 = false;
     for (int occupancy = current_occupancy_value; occupancy <= max_occupancy;
          ++occupancy) {
       auto const occupancy_trait_shift = occupancy * dimension_size;
@@ -46,10 +47,14 @@ struct trait_max_occupancy {
           current_arr_idx + occupancy_trait_shift, current_stop_time_idx,
           departure_stop_time_idx);
 
-      r_value = std::min(r_value, r);
+      min_arrival_time = std::min(min_arrival_time, std::get<0>(r));
+
+      //if there exists an arrival time for max occupancy zero
+      //  there implicitly exists an arrival time for occupancies > zero
+      value_for_max_occ_0 = occupancy == 0 && std::get<1>(r);
     }
 
-    return r_value;
+    return std::make_tuple(min_arrival_time, value_for_max_occ_0);
   }
 
   // check if journey dominates candidate in max_occupancy
