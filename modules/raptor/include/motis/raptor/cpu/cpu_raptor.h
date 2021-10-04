@@ -124,6 +124,7 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
 
   trip_count earliest_trip_id = invalid<trip_count>;
   station_id departure_id = invalid<station_id>;
+  station_id departure_stop_offset = invalid<station_id>;
   for (station_id r_stop_offset = 0; r_stop_offset < route.stop_count_;
        ++r_stop_offset) {
 
@@ -132,6 +133,7 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
           get_earliest_trip<Config>(tt, route, prev_ea, r_stop_offset);
       departure_id =
           tt.route_stops_[route.index_to_route_stops_ + r_stop_offset];
+      departure_stop_offset = r_stop_offset;
       continue;
     }
 
@@ -141,10 +143,6 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
     // we need to iterate through all possible trips starting from the earliest
     //  catchable as the criteria from the configuration possibly favor
     //  a later trip because it benefits from other properties than arrival time
-    // TODO: maybe it would be useful to implement a time cap here
-    //        e.g. a trip departing 6 hours after the earliest possible seems
-    //        an unlikely alternative for any traveler independent of the
-    //        criteria applied in the current configuration
     for (trip_count trip_id = earliest_trip_id; trip_id < invalid<trip_count>;
          trip_id = get_next_trip_id(route, trip_id)) {
 
@@ -152,13 +150,17 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
                                          (trip_id * route.stop_count_) +
                                          r_stop_offset;
 
+      auto const departure_stop_time_idx = route.index_to_stop_times_ +
+                                           (trip_id * route.stop_count_) +
+                                           departure_stop_offset;
+
       auto const& stop_time = tt.stop_times_[current_stop_time_idx];
 
-      auto [min_arrival_update, mark_station] = Config::check_and_propagate(
+      auto min_arrival_update = Config::check_and_propagate(
           previous_round, current_round, tt, r_id, trip_id, departure_id,
-          stop_id, current_stop_time_idx);
+          stop_id, current_stop_time_idx, departure_stop_time_idx);
 
-      if (mark_station) {
+      if (valid(min_arrival_update)) {
         station_marks.mark(stop_id);
       }
 
@@ -182,6 +184,7 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
       if (old_earliest_trip_id != earliest_trip_id) {
         departure_id =
             tt.route_stops_[route.index_to_route_stops_ + r_stop_offset];
+        departure_stop_offset = r_stop_offset;
       }
     }
   }
@@ -320,20 +323,20 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
     std::memset(ea.data(), invalid<motis::time>, ea.size() * sizeof(motis::time));
   }
 
-  //auto const trait_size = Config::trait_size();
-  //for (int round_k = 0; round_k < max_round_k; ++round_k) {
-  //  std::cout << "Results Round " << +round_k << std::endl;
-  //  for (int i = 0; i < tt.stop_count(); ++i) {
-  //    for (int j = 0; j < trait_size; ++j) {
-  //      if (valid(result[round_k][(i * trait_size) + j]))
-  //        std::cout << "Stop Id: " << std::setw(7) << +i << " -> "
-  //                  << std::setw(6) << +result[round_k][(i * trait_size) + j]
-  //                  << "; Arrival Idx: " << std::setw(6)
-  //                  << +((i * trait_size) + j)
-  //                  << "; Trait Offset: " << std::setw(4) << +j << std::endl;
-  //    }
-  //  }
-  //}
+//  auto const trait_size = Config::trait_size();
+//  for (int round_k = 0; round_k < max_round_k; ++round_k) {
+//    std::cout << "Results Round " << +round_k << std::endl;
+//    for (int i = 0; i < tt.stop_count(); ++i) {
+//      for (int j = 0; j < trait_size; ++j) {
+//        if (valid(result[round_k][(i * trait_size) + j]))
+//          std::cout << "Stop Id: " << std::setw(7) << +i << " -> "
+//                    << std::setw(6) << +result[round_k][(i * trait_size) + j]
+//                    << "; Arrival Idx: " << std::setw(6)
+//                    << +((i * trait_size) + j)
+//                    << "; Trait Offset: " << std::setw(4) << +j << std::endl;
+//      }
+//    }
+//  }
 }
 
 }  // namespace motis::raptor

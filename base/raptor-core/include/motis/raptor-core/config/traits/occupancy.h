@@ -19,37 +19,34 @@ struct trait_max_occupancy {
   inline static int size() { return (max_occupancy + 1) * NestedTrait::size(); }
 
   template <typename Timetable, typename TimeVal>
-  static std::tuple<TimeVal, bool> check_and_propagate(
+  static TimeVal check_and_propagate(
       TimeVal* const& prev_arrival, TimeVal* curr_arrival, Timetable const& tt,
       int const r_id, int const t_id, int const departure_stop_id,
       int const current_stop_id, int const departure_arr_idx,
-      int const current_arr_idx, int const stop_time_idx) {
+      int const current_arr_idx, uint32_t const current_stop_time_idx,
+      uint32_t const departure_stop_time_idx) {
 
     auto const dimension_size = NestedTrait::size();
 
     int current_occupancy_value =
-        tt.stop_occupancies_[stop_time_idx].inbound_occupancy_;
+        tt.stop_occupancies_[current_stop_time_idx].inbound_occupancy_;
 
     // as we are doing max occupancy we need to check
     // whether this trip with occupancy o gives better arrival times
     // for connections with max_occupancy >= o
     // this possibly leads to updates from min_occupancy up to max_occupancy
     // which can be costly
-    auto r_value = std::make_tuple(std::numeric_limits<TimeVal>::max(), false);
+    auto r_value = std::numeric_limits<TimeVal>::max();
     for (int occupancy = current_occupancy_value; occupancy <= max_occupancy;
          ++occupancy) {
       auto const occupancy_trait_shift = occupancy * dimension_size;
       auto const r = NestedTrait::check_and_propagate(
           prev_arrival, curr_arrival, tt, r_id, t_id, departure_stop_id,
           current_stop_id, departure_arr_idx + occupancy_trait_shift,
-          current_arr_idx + occupancy_trait_shift, stop_time_idx);
+          current_arr_idx + occupancy_trait_shift, current_stop_time_idx,
+          departure_stop_time_idx);
 
-      // merge results into return value;
-      //  first time gives the minimal overall arrival time used during this
-      //  update and second gives an indication whether there was an update at
-      //  all
-      std::get<0>(r_value) = std::min(std::get<0>(r_value), std::get<0>(r));
-      std::get<1>(r_value) = std::get<1>(r_value) || std::get<1>(r);
+      r_value = std::min(r_value, r);
     }
 
     return r_value;
@@ -61,8 +58,8 @@ struct trait_max_occupancy {
     // 1. determine candidate max_occupancy
     auto const candidate_max_occ = candidate.trait_data_.max_occupancy_;
     // 2. compare against journeys max_occupancy
-    auto const dominates = journey.occupancy_max_ < candidate_max_occ;
-    // 3. return result konjunction
+    auto const dominates = journey.occupancy_max_ <= candidate_max_occ;
+    // 3. return result conjunction
     return dominates &&
            NestedTrait::dominates(journey, candidate);
   }
