@@ -63,17 +63,9 @@ struct reconstructor {
            Config::dominates(j, c);
   }
 
-  // bool dominates(candidate const& c, journey const& j) {
-  //   auto const motis_arrival =
-  //       unix_to_motistime(sched_.schedule_begin_, get_arrival(j));
-  //   return c.arrival_ < motis_arrival && c.transfers_ <= get_transfers(j);
-  // }
-
   void add(motis::time const departure, raptor_result const& result) {
     auto const trait_size = Config::trait_size();
 
-    // candidate best_candidate(invalid<motis::time>, invalid<motis::time>,
-    //                          invalid<transfers>, false);
     for (raptor_round round_k = 1; round_k < max_round_k; ++round_k) {
 
       // also go through all trait dimensions to check for viable solutions
@@ -97,11 +89,6 @@ struct reconstructor {
 
         c.arrival_ -= tt;
 
-        // Candidate is dominated by a candidate in the same result set
-        // if (c.arrival_ >= best_candidate.arrival_) {
-        //  continue;
-        //}
-
         // Candidate has to arrive earlier than any already reconstructed
         // journey
         bool const dominated =
@@ -112,8 +99,6 @@ struct reconstructor {
         if (dominated) {
           continue;
         }
-
-        // best_candidate = c;
 
         if (!c.ends_with_footpath_) {
           c.arrival_ += tt;

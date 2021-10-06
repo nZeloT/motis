@@ -98,7 +98,7 @@ inline void init_arrivals(raptor_result& result, earliest_arrivals& prev_ea,
   for (auto const& f : raptor_sched.initialization_footpaths_[q.source_]) {
     motis::time const arr = q.source_time_begin_ + f.duration_;
     Config::propagate_across_traits(result[0], f.to_, arr);
-    prev_ea[f.to_] = result[0][f.to_];
+    prev_ea[f.to_] = std::min(arr, prev_ea[f.to_]);
     station_marks.mark(f.to_);
   }
 }
@@ -271,8 +271,6 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
   //   print_route_stop_ids(tt, r_id, route);
   // }
 
-  // TODO: check whether the ea array should also be initialized at
-  //        ea[q.source_]
   // TODO: also check whether one of prev_ea or ea can be eliminated
   earliest_arrivals prev_ea(tt.stop_count(), invalid<motis::time>);
   earliest_arrivals ea(tt.stop_count(), invalid<motis::time>);
@@ -330,22 +328,22 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
                 ea.size() * sizeof(motis::time));
   }
 
-  //  auto const trait_size = Config::trait_size();
-  //  for (int round_k = 0; round_k < max_round_k; ++round_k) {
-  //    std::cout << "Results Round " << +round_k << std::endl;
-  //    for (int i = 0; i < tt.stop_count(); ++i) {
-  //      for (int j = 0; j < trait_size; ++j) {
-  //        if (valid(result[round_k][(i * trait_size) + j]))
-  //          std::cout << "Stop Id: " << std::setw(7) << +i << " -> "
-  //                    << std::setw(6) << +result[round_k][(i * trait_size) +
-  //                    j]
-  //                    << "; Arrival Idx: " << std::setw(6)
-  //                    << +((i * trait_size) + j)
-  //                    << "; Trait Offset: " << std::setw(4) << +j <<
-  //                    std::endl;
-  //      }
-  //    }
-  //  }
+//    auto const trait_size = Config::trait_size();
+//    for (int round_k = 0; round_k < max_round_k; ++round_k) {
+//      std::cout << "Results Round " << +round_k << std::endl;
+//      for (int i = 0; i < tt.stop_count(); ++i) {
+//        for (int j = 2; j < trait_size; ++j) {
+//          if (valid(result[round_k][(i * trait_size) + j]))
+//            std::cout << "Stop Id: " << std::setw(7) << +i << " -> "
+//                      << std::setw(6) << +result[round_k][(i * trait_size) +
+//                      j]
+//                      << "; Arrival Idx: " << std::setw(6)
+//                      << +((i * trait_size) + j)
+//                      << "; Trait Offset: " << std::setw(4) << +j <<
+//                      std::endl;
+//        }
+//      }
+//    }
 }
 
 }  // namespace motis::raptor
