@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "motis/core/journey/journey_util.h"
+
 #include "motis/raptor-core/raptor_query.h"
 #include "motis/raptor-core/raptor_timetable.h"
 
@@ -24,8 +26,8 @@ struct reconstructor {
   struct candidate {
     candidate() = delete;
     candidate(motis::time const dep, motis::time const arr, transfers const t,
-              int const trait_offset,
-              TraitData trait_data, bool const ends_with_footpath)
+              int const trait_offset, TraitData trait_data,
+              bool const ends_with_footpath)
         : departure_(dep),
           arrival_(arr),
           transfers_(t),
@@ -326,8 +328,8 @@ struct reconstructor {
           continue;
         }
 
-        auto const arrival_trip =
-            get_arrival_trip_at_station(r_id, stop_arrival, offset);
+        auto const arrival_trip = get_arrival_trip_at_station(
+            r_id, stop_arrival, offset, trait_offset);
 
         if (!valid(arrival_trip)) {
           continue;
@@ -348,13 +350,16 @@ struct reconstructor {
 
   trip_id get_arrival_trip_at_station(route_id const r_id,
                                       motis::time const arrival,
-                                      stop_offset const offset) {
+                                      stop_offset const offset,
+                                      uint32_t trait_offset) {
     auto const& route = timetable_.routes_[r_id];
 
     for (auto trip = 0; trip < route.trip_count_; ++trip) {
       auto const sti =
           route.index_to_stop_times_ + (trip * route.stop_count_) + offset;
-      if (timetable_.stop_times_[sti].arrival_ == arrival) {
+      if (timetable_.stop_times_[sti].arrival_ == arrival &&
+          Config::matches_trait_offset(timetable_, r_id, trip, offset, sti,
+                                       trait_offset)) {
         return trip;
       }
     }

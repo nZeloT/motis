@@ -44,6 +44,16 @@ struct traits {
       arrivals[(arrivals_idx * size) + t_offset] = propagate;
     }
   }
+
+  template <typename Timetable>
+  inline static bool matches_trait_offset(Timetable const& tt,
+                                          uint32_t route_id, uint32_t trip_id,
+                                          uint32_t stop_offset,
+                                          uint32_t stop_time_idx,
+                                          uint32_t trait_offset) {
+    return Trait::matches_trait_offset(tt, route_id, trip_id, stop_offset,
+                                       stop_time_idx, trait_offset);
+  }
 };
 
 struct trait_data_nop {};
@@ -63,11 +73,11 @@ struct trait_nop {
   template <typename ArrivalIdx>
   inline static void derive_trait_values(Data& _1, ArrivalIdx const _2) {}
 
-
-  //Return value gives the lowest written arrival time and an indication whether
-  //  the traits have been satisfied i.e. there is an arrival value written
-  //  for all possible trait values and therefore no better arrival time can
-  //  be archived with subsequent trips having later departure times
+  // Return value gives the lowest written arrival time and an indication
+  // whether
+  //   the traits have been satisfied i.e. there is an arrival value written
+  //   for all possible trait values and therefore no better arrival time can
+  //   be archived with subsequent trips having later departure times
   template <typename Timetable, typename TimeVal>
   inline static std::tuple<TimeVal, bool> check_and_propagate(
       TimeVal* const& prev_arrival, TimeVal* curr_arrival, Timetable const& tt,
@@ -119,6 +129,13 @@ struct trait_nop {
     } else {
       return std::make_tuple(InvalidTime, false);
     }
+  }
+
+  template <typename Timetable>
+  inline static bool matches_trait_offset(Timetable const& _1, uint32_t _2,
+                                          uint32_t _3, uint32_t _4, uint32_t _5,
+                                          uint32_t _6) {
+    return true;
   }
 };
 

@@ -60,6 +60,16 @@ struct config {
   }
 
   template <typename Timetable>
+  inline static bool matches_trait_offset(Timetable const& tt,
+                                          uint32_t route_id, uint32_t trip_id,
+                                          uint32_t stop_offset,
+                                          uint32_t stop_time_idx,
+                                          uint32_t trait_offset) {
+    return Trait::matches_trait_offset(tt, route_id, trip_id, stop_offset,
+                                stop_time_idx, trait_offset);
+  }
+
+  template <typename Timetable>
   inline static bool is_filtered(Timetable const& tt, int stop_time_idx) {
     return Filter::is_filtered(tt, stop_time_idx);
   }

@@ -80,6 +80,27 @@ struct trait_max_occupancy {
     data.max_occupancy_ = trait_value;
     NestedTrait::derive_trait_values(data, nested_idx);
   }
+
+  template <typename Timetable>
+  inline static bool matches_trait_offset(Timetable const& tt,
+                                          uint32_t route_id, uint32_t trip_id,
+                                          uint32_t stop_offset,
+                                          uint32_t stop_time_idx,
+                                          uint32_t trait_offset) {
+
+    auto const trip_arrival_occupancy =
+        tt.stop_occupancies_[stop_time_idx].inbound_occupancy_;
+
+    auto const dimension_size = NestedTrait::size();
+    uint32_t const trait_value = trait_offset / dimension_size;
+    uint32_t nested_idx = trait_offset % dimension_size;
+
+    auto const dimension_matches = trip_arrival_occupancy <= trait_value;
+
+    return dimension_matches &&
+           NestedTrait::matches_trait_offset(tt, route_id, trip_id, stop_offset,
+                                             stop_time_idx, nested_idx);
+  }
 };
 
 }  // namespace motis::raptor

@@ -5,6 +5,8 @@
 #include <iostream>
 
 #include "motis/core/common/logging.h"
+#include "motis/raptor/raptor_statistics.h"
+#include "motis/raptor/raptor_schedule.h"
 
 #include "motis/raptor-core/raptor_query.h"
 
