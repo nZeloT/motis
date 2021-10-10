@@ -3,6 +3,10 @@
 #include <algorithm>
 #include <utility>
 
+#include <cstdio>
+#include <iomanip>
+#include <iostream>
+
 #include "motis/core/journey/journey_util.h"
 
 #include "motis/raptor-core/raptor_query.h"
@@ -21,12 +25,12 @@ using namespace motis::routing::output;
 
 template <typename Config>
 struct reconstructor {
-  using TraitData = typename Config::TraitData;
+  using TraitsData = typename Config::TraitsData;
 
   struct candidate {
     candidate() = delete;
     candidate(motis::time const dep, motis::time const arr, transfers const t,
-              int const trait_offset, TraitData trait_data,
+              int const trait_offset, TraitsData trait_data,
               bool const ends_with_footpath)
         : departure_(dep),
           arrival_(arr),
@@ -40,7 +44,7 @@ struct reconstructor {
     bool ends_with_footpath_;
 
     int trait_offset_;
-    TraitData trait_data_;
+    TraitsData trait_data_;
   };
 
   std::string to_string(candidate const& c) {
@@ -79,7 +83,7 @@ struct reconstructor {
 
         auto const tt = raptor_sched_.transfer_times_[target_];
 
-        auto trait_vals = Config::derive_trait_values(t_offset);
+        auto trait_vals = Config::get_traits_data(t_offset);
         candidate c(departure, result[round_k][arrival_idx], round_k - 1,
                     t_offset, std::move(trait_vals), true);
         for (; c.arrival_ < result[round_k][arrival_idx] + tt; c.arrival_++) {
@@ -238,13 +242,19 @@ struct reconstructor {
 
   bool journey_ends_with_footpath(candidate const c,
                                   raptor_result const& result) {
-    auto const tuple = get_previous_station(
-        target_, c.arrival_, c.transfers_ + 1, c.trait_offset_, result);
+    auto const tuple =
+        get_previous_station(target_, c.arrival_, c.transfers_ + 1,
+                             c.trait_data_, c.trait_offset_, result);
     return !valid(std::get<0>(tuple));
   }
 
   journey reconstruct_journey(candidate const c, raptor_result const& result) {
     intermediate_journey ij(c.transfers_);
+
+//    std::cout << "Reconstructing new journey with " << c.transfers_
+//              << " transferes." << std::endl;
+//    std::cout << "---------------------------------------------------------"
+//              << std::endl;
 
     auto arrival_station = target_;
     auto last_departure = invalid<motis::time>;
@@ -253,7 +263,7 @@ struct reconstructor {
 
       auto [previous_station, used_route, used_trip, stop_offset] =
           get_previous_station(arrival_station, station_arrival, result_idx,
-                               c.trait_offset_, result);
+                               c.trait_data_, c.trait_offset_, result);
 
       if (!valid(previous_station)) {
 
@@ -263,9 +273,16 @@ struct reconstructor {
           auto const adjusted_arrival = station_arrival - inc_f.duration_;
           std::tie(previous_station, used_route, used_trip, stop_offset) =
               get_previous_station(inc_f.from_, adjusted_arrival, result_idx,
-                                   c.trait_offset_, result);
+                                   c.trait_data_, c.trait_offset_, result);
 
           if (valid(previous_station)) {
+//            std::cout << "res_idx: " << result_idx << ";\tTook Footpath"
+//                      << ";\t\tFrom " << std::setw(6) << inc_f.from_
+//                      << ";\tArriving at " << std::setw(6) << adjusted_arrival
+//                      << ";\tTo " << std::setw(6) << arrival_station
+//                      << ";\tArriving at " << std::setw(6) << station_arrival
+//                      << std::endl;
+
             ij.add_footpath(arrival_station, station_arrival, last_departure,
                             inc_f.duration_, raptor_sched_);
             last_departure =
@@ -279,10 +296,20 @@ struct reconstructor {
                                       stop_offset, raptor_sched_);
       }
 
+//      std::cout << "res_idx: " << result_idx << ";\tTook route " << std::setw(6)
+//                << used_route << ";\tFrom " << std::setw(6) << previous_station;
+
+      auto const to_station = arrival_station;
       arrival_station = previous_station;
       auto const arr_idx =
           Config::get_arrival_idx(arrival_station, c.trait_offset_);
+      auto const old_station_arrival = station_arrival;
       station_arrival = result[result_idx - 1][arr_idx];
+
+//      std::cout << ";\tArriving at " << std::setw(6) << station_arrival
+//                << ";\tTo " << std::setw(6) << to_station << ";\tArriving at "
+//                << std::setw(6) << old_station_arrival << ";\tTrip Id "
+//                << std::setw(3) << used_trip << std::endl;
     }
 
     // Add last footpath if necessary
@@ -310,8 +337,8 @@ struct reconstructor {
 
   std::tuple<station_id, route_id, trip_id, stop_offset> get_previous_station(
       station_id const arrival_station, motis::time const stop_arrival,
-      uint8_t const result_idx, int const trait_offset,
-      raptor_result const& result) {
+      uint8_t const result_idx, TraitsData const& traits_data,
+      uint32_t trait_offset, raptor_result const& result) {
     auto const arrival_stop = timetable_.stops_[arrival_station];
 
     auto const route_count = arrival_stop.route_count_;
@@ -329,7 +356,7 @@ struct reconstructor {
         }
 
         auto const arrival_trip = get_arrival_trip_at_station(
-            r_id, stop_arrival, offset, trait_offset);
+            r_id, stop_arrival, offset, traits_data);
 
         if (!valid(arrival_trip)) {
           continue;
@@ -351,15 +378,15 @@ struct reconstructor {
   trip_id get_arrival_trip_at_station(route_id const r_id,
                                       motis::time const arrival,
                                       stop_offset const offset,
-                                      uint32_t trait_offset) {
+                                      TraitsData const& trait_data) {
     auto const& route = timetable_.routes_[r_id];
 
     for (auto trip = 0; trip < route.trip_count_; ++trip) {
       auto const sti =
           route.index_to_stop_times_ + (trip * route.stop_count_) + offset;
       if (timetable_.stop_times_[sti].arrival_ == arrival &&
-          Config::matches_trait_offset(timetable_, r_id, trip, offset, sti,
-                                       trait_offset)) {
+          Config::trip_matches_traits(trait_data, timetable_, r_id, trip,
+                                      offset, sti)) {
         return trip;
       }
     }

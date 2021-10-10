@@ -1,10 +1,12 @@
 #pragma once
 
-#include "motis/raptor-core/raptor_query.h"
-#include "motis/raptor/raptor_schedule.h"
-
 #include "motis/core/schedule/schedule.h"
 #include "motis/module/message.h"
+
+
+#include "motis/raptor-core/raptor_query.h"
+#include "motis/raptor/raptor_schedule.h"
+#include "motis/raptor/error.h"
 
 namespace motis {
 namespace raptor {
@@ -55,8 +57,16 @@ base_query get_base_query(RoutingRequest const* routing_request,
     default: break;
   }
 
-  q.source_ = raptor_sched.eva_to_raptor_id_.at(start_eva);
-  q.target_ = raptor_sched.eva_to_raptor_id_.at(target_eva);
+  try {
+    q.source_ = raptor_sched.eva_to_raptor_id_.at(start_eva);
+  }catch(std::out_of_range const&) {
+    throw std::system_error{error::source_station_not_in_schedule};
+  }
+  try{
+    q.target_ = raptor_sched.eva_to_raptor_id_.at(target_eva);
+  }catch(std::out_of_range const&) {
+    throw std::system_error{error::target_station_not_in_schedule};
+  }
 
   return q;
 }

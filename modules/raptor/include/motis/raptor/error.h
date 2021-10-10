@@ -13,7 +13,9 @@ enum error_code_t {
   search_type_not_supported = 3,
   via_not_supported = 4,
   additional_edges_not_supported = 5,
-  journey_date_not_in_schedule = 6
+  journey_date_not_in_schedule = 6,
+  source_station_not_in_schedule = 7,
+  target_station_not_in_schedule = 8
 };
 }
 
@@ -32,6 +34,8 @@ public:
       case error::via_not_supported: return "raptor: via not supported";
       case error::additional_edges_not_supported: return "raptor: additional edges not supported";
       case error::journey_date_not_in_schedule: return "raptor: journey date not in schedule";
+      case error::source_station_not_in_schedule: return "raptor: source station_id is not in schedule";
+      case error::target_station_not_in_schedule: return "raptor: target station_id is not in schedule";
       default: return "raptor: unknown error";
     }
   }

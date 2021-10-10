@@ -1,77 +1,148 @@
 #pragma once
 
+#include <tuple>
+
 namespace motis::raptor {
 
-template <typename Trait>
-struct traits {
-  using TraitData = typename Trait::Data;
+template <typename... TraitData>
+struct trait_data : public TraitData... {};
 
-  inline static int size() { return Trait::size(); }
+template <typename... Trait>
+struct traits;
 
-  template <typename Timetable, typename TimeVal>
-  inline static std::tuple<TimeVal, bool> check_and_propagate(
-      TimeVal* const& prev_arrival, TimeVal* curr_arrival, Timetable const& tt,
-      int const r_id, int const t_id, int const departure_stop_id,
-      int const current_stop_id, int const departure_arr_idx,
-      int const current_arr_idx, uint32_t const current_stop_time_idx,
-      uint32_t const departure_stop_time_idx) {
-    return Trait::check_and_propagate(
-        prev_arrival, curr_arrival, tt, r_id, t_id, departure_stop_id,
-        current_stop_id, departure_arr_idx, current_arr_idx,
-        current_stop_time_idx, departure_stop_time_idx);
+template <typename FirstTrait, typename... RestTraits>
+struct traits<FirstTrait, RestTraits...> {
+  using TraitsData = trait_data<FirstTrait, RestTraits...>;
+
+  inline static uint32_t size() {
+    auto size = FirstTrait::value_range_size();
+    return size * traits<RestTraits...>::size();
   }
 
-  // check if a candidate journey dominates a given journey by checking on the
-  // respective timetable values
-  template <typename Journey, typename Candidate>
-  inline static bool dominates(Journey const& journey,
-                               Candidate const& candidate) {
-    return Trait::dominates(journey, candidate);
-  }
+  inline static void get_trait_data(uint32_t const total_size, TraitsData& dt,
+                                    uint32_t const trait_offset) {
+    auto const first_value_size = FirstTrait::value_range_size();
+    auto const rest_trait_size = total_size / first_value_size;
 
-  // derive the trait values from the arrival time index
-  template <typename ArrivalIdx>
-  inline static void derive_trait_values(TraitData& data, ArrivalIdx idx) {
-    Trait::derive_trait_values(data, idx);
-  }
+    auto const first_trait_idx = trait_offset / rest_trait_size;
+    auto const rest_trait_offset = trait_offset % rest_trait_size;
 
-  template <typename TimeVal>
-  inline static void propagate_across_traits(TimeVal*& arrivals,
-                                             int arrivals_idx,
-                                             TimeVal const& propagate) {
-    auto const size = traits<Trait>::size();
-    for (int t_offset = 0; t_offset < size; ++t_offset) {
-      arrivals[(arrivals_idx * size) + t_offset] = propagate;
-    }
+    FirstTrait::fill_trait_data_from_idx(dt, first_trait_idx);
+
+    traits<RestTraits...>::get_trait_data(rest_trait_size, dt,
+                                          rest_trait_offset);
   }
 
   template <typename Timetable>
-  inline static bool matches_trait_offset(Timetable const& tt,
-                                          uint32_t route_id, uint32_t trip_id,
-                                          uint32_t stop_offset,
-                                          uint32_t stop_time_idx,
-                                          uint32_t trait_offset) {
-    return Trait::matches_trait_offset(tt, route_id, trip_id, stop_offset,
-                                       stop_time_idx, trait_offset);
+  inline static bool trip_matches_traits(
+      TraitsData const& dt, Timetable const& tt, uint32_t const r_id,
+      uint32_t const t_id, uint32_t const s_offset, uint32_t const sti) {
+    return FirstTrait::trip_matches_trait(dt, tt, r_id, t_id, s_offset, sti) &&
+           traits<RestTraits...>::trip_matches_traits(dt, tt, r_id, t_id,
+                                                      s_offset, sti);
+  }
+
+  template <typename Timetable, typename TimeVal>
+  inline static std::tuple<TimeVal, bool> check_and_update_arrivals_old(
+      uint32_t total_size, TimeVal* const& prev_arrival, TimeVal*& curr_arrival,
+      Timetable const& tt,
+      uint32_t const dep_arrivals_idx, uint32_t const cur_arrivals_idx,
+      uint32_t const dep_sti, uint32_t const curr_sti) {
+
+    auto const first_value_size = FirstTrait::value_range_size();
+    auto const nested_trait_size = total_size / first_value_size;
+
+    auto result = std::make_tuple(std::numeric_limits<TimeVal>::max(), false);
+    uint32_t it = FirstTrait::init_trait_iteration_old();
+    while (it != std::numeric_limits<uint32_t>::max()) {
+
+      auto const [min_arr_time, rest_satisfied] =
+          traits<RestTraits...>::check_and_update_arrivals_old(
+              nested_trait_size, prev_arrival, curr_arrival, tt,
+              (dep_arrivals_idx + it * nested_trait_size),
+              (cur_arrivals_idx + it * nested_trait_size), dep_sti, curr_sti);
+
+      std::get<0>(result) = std::min(std::get<0>(result), min_arr_time);
+      std::get<1>(result) =
+          FirstTrait::is_satisfied(std::get<1>(result), it, rest_satisfied);
+
+      it = FirstTrait::next_trait_iteration_old(tt, dep_sti, curr_sti, it);
+    }
+
+    return result;
+  }
+
+  template <typename Timetable, typename TimeVal>
+  inline static std::tuple<TimeVal, bool> check_and_update_arrivals(
+      uint32_t total_size, TimeVal* const& prev_arrival, TimeVal*& curr_arrival,
+      Timetable const& tt, TraitsData const& aggregate_dt,
+      uint32_t const dep_arrivals_idx, uint32_t const cur_arrivals_idx,
+      uint32_t const dep_sti, uint32_t const curr_sti) {
+
+    auto const first_value_size = FirstTrait::value_range_size();
+    auto const nested_trait_size = total_size / first_value_size;
+
+    auto result = std::make_tuple(std::numeric_limits<TimeVal>::max(), false);
+    uint32_t it = FirstTrait::init_trait_iteration(aggregate_dt);
+    while (it != std::numeric_limits<uint32_t>::max()) {
+
+      auto const [min_arr_time, rest_satisfied] =
+          traits<RestTraits...>::check_and_update_arrivals(
+              nested_trait_size, prev_arrival, curr_arrival, tt, aggregate_dt,
+              (dep_arrivals_idx + it * nested_trait_size),
+              (cur_arrivals_idx + it * nested_trait_size), dep_sti, curr_sti);
+
+      std::get<0>(result) = std::min(std::get<0>(result), min_arr_time);
+      std::get<1>(result) =
+          FirstTrait::is_satisfied(std::get<1>(result), it, rest_satisfied);
+
+      it = FirstTrait::next_trait_iteration(aggregate_dt, it);
+    }
+
+    return result;
+  }
+
+  // helper to aggregate values while progressing through the route stop by stop
+  template <typename Timetable>
+  inline static void update_aggregate(TraitsData& aggregate_dt,
+                                      Timetable const& tt, uint32_t const r_id,
+                                      uint32_t const t_id,
+                                      uint32_t const s_offset,
+                                      uint32_t const sti) {
+    FirstTrait::update_aggregate(aggregate_dt, tt, r_id, t_id, s_offset, sti);
+    traits<RestTraits...>::update_aggregate(aggregate_dt, tt, r_id, t_id,
+                                            s_offset, sti);
+  }
+
+  // reset the aggregate everytime the departure station changes
+  inline static void reset_aggregate(TraitsData& aggregate_dt) {
+    FirstTrait::reset_aggregate(aggregate_dt);
+    traits<RestTraits...>::reset_aggregate(aggregate_dt);
+  }
+
+  template <typename Journey, typename Candidate>
+  inline static bool dominates(Journey const& j, Candidate const& c) {
+    return FirstTrait::dominates(j, c) &&
+           traits<RestTraits...>::dominates(j, c);
   }
 };
 
-struct trait_data_nop {};
-struct trait_nop {
-  using Data = trait_data_nop;
+template <>
+struct traits<> {
+  using TraitsData = trait_data<>;
 
-  // giving the neutral element for sizing
-  inline static int size() { return 1; }
+  inline static uint32_t size() { return 1; }
 
-  // giving the neutral element of the conjunction
-  template <typename Journey, typename Candidate>
-  inline static bool dominates(Journey const& _1, Candidate const& _2) {
+  template <typename Data>
+  inline static void get_trait_data(uint32_t const _1, Data& _2,
+                                    uint32_t const _3) {}
+
+  template <typename Data, typename Timetable>
+  inline static bool trip_matches_traits(
+      Data const& dt, Timetable const& tt, uint32_t const r_id,
+      uint32_t const t_id, uint32_t const s_offset, uint32_t const sti) {
     return true;
   }
-
-  // giving the neutral element of vectors
-  template <typename ArrivalIdx>
-  inline static void derive_trait_values(Data& _1, ArrivalIdx const _2) {}
 
   // Return value gives the lowest written arrival time and an indication
   // whether
@@ -79,19 +150,18 @@ struct trait_nop {
   //   for all possible trait values and therefore no better arrival time can
   //   be archived with subsequent trips having later departure times
   template <typename Timetable, typename TimeVal>
-  inline static std::tuple<TimeVal, bool> check_and_propagate(
-      TimeVal* const& prev_arrival, TimeVal* curr_arrival, Timetable const& tt,
-      int const r_id, int const t_id, int const departure_stop_id,
-      int const current_stop_id, int const departure_arr_idx,
-      int const current_arr_idx, uint32_t const current_stop_time_idx,
-      uint32_t const departure_stop_time_idx) {
+  inline static std::tuple<TimeVal, bool> check_and_update_arrivals_old(
+      uint32_t total_size, TimeVal* const& prev_arrival, TimeVal*& curr_arrival,
+      Timetable const& tt,
+      uint32_t const dep_arrivals_idx, uint32_t const cur_arrivals_idx,
+      uint32_t const dep_sti, uint32_t const curr_sti) {
 
     auto const InvalidTime = std::numeric_limits<TimeVal>::max();
 
     // 1. check if the departure station has a valid arrival time on the
     //    previous round with the given trait offset (already added to the
     //    departure_arr_idx)
-    auto const departure_arr_time = prev_arrival[departure_arr_idx];
+    auto const departure_arr_time = prev_arrival[dep_arrivals_idx];
     if (departure_arr_time == InvalidTime) {
       return std::make_tuple(InvalidTime, false);
     }
@@ -100,7 +170,7 @@ struct trait_nop {
     //    now check that the given trip departs after the arrival at
     //    the departure station
     auto const departure_stop_trip_departure_time =
-        tt.stop_times_[departure_stop_time_idx].departure_;
+        tt.stop_times_[dep_sti].departure_;
     if (departure_arr_time > departure_stop_trip_departure_time) {
       return std::make_tuple(InvalidTime, false);
     }
@@ -110,8 +180,7 @@ struct trait_nop {
     // 3. there exists a valid arrival time on the departure station with the
     //    given trait offset; now check whether the known departure time is
     //    lower than the arrival time at the current stop
-    auto const current_stop_arrival =
-        tt.stop_times_[current_stop_time_idx].arrival_;
+    auto const current_stop_arrival = tt.stop_times_[curr_sti].arrival_;
     if (current_stop_arrival <= departure_arr_time) {
       return std::make_tuple(InvalidTime, false);
     }
@@ -120,10 +189,9 @@ struct trait_nop {
     //    less than the arrival time at the current stop; therefore now
     //    check whether the new arrival time is lower than the already known
     //    possible arrival time at this stop
-
-    auto const current_arrival_time = curr_arrival[current_arr_idx];
+    auto const current_arrival_time = curr_arrival[cur_arrivals_idx];
     if (current_stop_arrival < current_arrival_time) {
-      curr_arrival[current_arr_idx] = current_stop_arrival;
+      curr_arrival[cur_arrivals_idx] = current_stop_arrival;
 
       return std::make_tuple(current_stop_arrival, true);
     } else {
@@ -131,10 +199,72 @@ struct trait_nop {
     }
   }
 
-  template <typename Timetable>
-  inline static bool matches_trait_offset(Timetable const& _1, uint32_t _2,
-                                          uint32_t _3, uint32_t _4, uint32_t _5,
-                                          uint32_t _6) {
+  // Return value gives the lowest written arrival time and an indication
+  // whether
+  //   the traits have been satisfied i.e. there is an arrival value written
+  //   for all possible trait values and therefore no better arrival time can
+  //   be archived with subsequent trips having later departure times
+  template <typename Data, typename Timetable, typename TimeVal>
+  inline static std::tuple<TimeVal, bool> check_and_update_arrivals(
+      uint32_t total_size, TimeVal* const& prev_arrival, TimeVal*& curr_arrival,
+      Timetable const& tt, Data const& aggregate_dt,
+      uint32_t const dep_arrivals_idx, uint32_t const cur_arrivals_idx,
+      uint32_t const dep_sti, uint32_t const curr_sti) {
+
+    auto const InvalidTime = std::numeric_limits<TimeVal>::max();
+
+    // 1. check if the departure station has a valid arrival time on the
+    //    previous round with the given trait offset (already added to the
+    //    departure_arr_idx)
+    auto const departure_arr_time = prev_arrival[dep_arrivals_idx];
+    if (departure_arr_time == InvalidTime) {
+      return std::make_tuple(InvalidTime, false);
+    }
+
+    // 2. the departure station has a valid departure time
+    //    now check that the given trip departs after the arrival at
+    //    the departure station
+    auto const departure_stop_trip_departure_time =
+        tt.stop_times_[dep_sti].departure_;
+    if (departure_arr_time > departure_stop_trip_departure_time) {
+      return std::make_tuple(InvalidTime, false);
+    }
+
+    // TODO: check if this is still needed; i think not
+
+    // 3. there exists a valid arrival time on the departure station with the
+    //    given trait offset; now check whether the known departure time is
+    //    lower than the arrival time at the current stop
+    auto const current_stop_arrival = tt.stop_times_[curr_sti].arrival_;
+    if (current_stop_arrival <= departure_arr_time) {
+      return std::make_tuple(InvalidTime, false);
+    }
+
+    // 4. there exists a departure station which has an arrival time
+    //    less than the arrival time at the current stop; therefore now
+    //    check whether the new arrival time is lower than the already known
+    //    possible arrival time at this stop
+    auto const current_arrival_time = curr_arrival[cur_arrivals_idx];
+    if (current_stop_arrival < current_arrival_time) {
+      curr_arrival[cur_arrivals_idx] = current_stop_arrival;
+
+      return std::make_tuple(current_stop_arrival, true);
+    } else {
+      return std::make_tuple(InvalidTime, false);
+    }
+  }
+
+  template <typename Data, typename Timetable>
+  inline static void update_aggregate(Data& _1, Timetable const& _2,
+                                      uint32_t const _3, uint32_t const _4,
+                                      uint32_t const _5, uint32_t const _6) {}
+
+  template <typename Data>
+  inline static void reset_aggregate(Data& _1) {}
+
+  // giving the neutral element of the conjunction
+  template <typename Journey, typename Candidate>
+  inline static bool dominates(Journey const& _1, Candidate const& _2) {
     return true;
   }
 };
