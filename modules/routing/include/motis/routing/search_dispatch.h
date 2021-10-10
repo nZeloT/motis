@@ -43,6 +43,8 @@ inline search_result search_dispatch(search_query const& q,
       } else {
         return get_connections<default_simple_label<Dir>, Gen>(q);
       }
+    case SearchType_MaxOccupancy:
+      return get_connections<max_occupancy_label<Dir>, Gen>(q);
     case SearchType_SingleCriterion:
       return get_connections<single_criterion_label<Dir>, Gen>(q);
     case SearchType_SingleCriterionNoIntercity:

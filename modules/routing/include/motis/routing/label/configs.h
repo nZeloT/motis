@@ -5,6 +5,7 @@
 #include "motis/routing/label/criteria/accessibility.h"
 #include "motis/routing/label/criteria/late_connections.h"
 #include "motis/routing/label/criteria/no_intercity.h"
+#include "motis/routing/label/criteria/occupancy.h"
 #include "motis/routing/label/criteria/transfers.h"
 #include "motis/routing/label/criteria/travel_time.h"
 #include "motis/routing/label/criteria/weighted.h"
@@ -29,6 +30,21 @@ using default_label =
           dominance<absurdity_post_search_tb, travel_time_alpha_dominance,
                     transfers_dominance>,
           comparator<transfers_dominance>>;
+
+template<search_dir Dir>
+using max_occupancy_label =
+    label<Dir, MAX_TRAVEL_TIME, false, get_travel_time_lb,
+      label_data<travel_time, transfers, absurdity, occupancy>,
+      initializer<travel_time_initializer, transfers_initializer,
+        absurdity_initializer, occupancy_initializer>,
+      updater<travel_time_updater, transfers_updater, absurdity_updater,
+        occupancy_updater<false>>,
+      filter<travel_time_filter, transfers_filter>,
+      dominance<absurdity_tb, travel_time_dominance, transfers_dominance,
+        occupancy_dominance_max>,
+      dominance<absurdity_post_search_tb, travel_time_alpha_dominance,
+                    transfers_dominance, occupancy_dominance_max>,
+      comparator<transfers_dominance>>;
 
 template <search_dir Dir>
 using default_simple_label = label<
