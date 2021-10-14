@@ -16,6 +16,7 @@ struct raptor_schedule {
 
   std::unordered_map<std::string, station_id> eva_to_raptor_id_;
   std::vector<std::string> raptor_id_to_eva_;
+  std::vector<std::string> raptor_route_trip_to_trip_debug_;
   std::vector<unsigned> station_id_to_index_;
   std::vector<motis::time> transfer_times_;
 

@@ -63,8 +63,11 @@ struct trait_max_occupancy {
 
     auto const next_it = current_trait_it - 1;
 
-    //just check occupancy on arrival sti
-    auto const max_occ = tt.stop_occupancies_[curr_sti].inbound_occupancy_;
+    // just check occupancy on arrival sti
+    uint8_t max_occ = 0;
+    for (uint32_t sti = dep_sti+1; sti <= curr_sti; ++sti) {
+      max_occ = std::max(max_occ, tt.stop_occupancies_[sti].inbound_occupancy_);
+    }
 
     if (max_occ <= next_it) {
       return next_it;

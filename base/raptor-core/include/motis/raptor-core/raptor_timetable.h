@@ -5,6 +5,7 @@
 #include <map>
 #include <unordered_map>
 #include <vector>
+#include <string>
 #include <set>
 
 #include "motis/core/schedule/time.h"
@@ -34,6 +35,7 @@ using stop_times_index = uint32_t;
 using route_stops_index = uint32_t;
 using stop_routes_index = uint32_t;
 using footpaths_index = uint32_t;
+using route_debug_index = uint32_t;
 
 // additional attributes
 using occupancy = uint8_t;
@@ -76,18 +78,20 @@ struct raptor_route {
   raptor_route() = delete;
   raptor_route(trip_count const tc, stop_count const sc,
                stop_times_index const sti, route_stops_index const rsi,
-               motis::time const st)
+               motis::time const st, route_debug_index index_to_debug)
       : trip_count_(tc),
         stop_count_(sc),
         index_to_stop_times_(sti),
         index_to_route_stops_(rsi),
-        stand_time_(st) {}
+        stand_time_(st),
+        index_to_trip_dbg_{index_to_debug} {}
 
   trip_count trip_count_;
   stop_count stop_count_;
   stop_times_index index_to_stop_times_;
   route_stops_index index_to_route_stops_;
   motis::time stand_time_;
+  route_debug_index index_to_trip_dbg_;
 };
 
 struct stop_time {

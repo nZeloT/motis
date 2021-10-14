@@ -63,6 +63,9 @@ struct reconstructor {
         timetable_(raptor_sched.timetable_) {}
 
   bool dominates(journey const& j, candidate const& c) {
+    auto const unix_arrival_j = get_arrival(j);
+    auto const unix_arrival_c =
+        motis_to_unixtime(sched_.schedule_begin_, c.arrival_);
     auto const motis_arrival =
         unix_to_motistime(sched_.schedule_begin_, get_arrival(j));
     return (motis_arrival <= c.arrival_ && get_transfers(j) <= c.transfers_) &&
@@ -103,13 +106,22 @@ struct reconstructor {
 
         // Candidate is dominated by already reconstructed journey
         if (dominated) {
-          continue;
+            continue;
         }
 
         if (!c.ends_with_footpath_) {
           c.arrival_ += tt;
         }
-        journeys_.push_back(reconstruct_journey(c, result));
+
+        auto const j = reconstruct_journey(c, result);
+        if (j.duration_ <= 86400) {
+          journeys_.push_back(j);
+        }
+        // else{
+        //   std::cout << "Filtered journey with duration " << +j.duration_ <<
+        //   ";\tTrips: " << +j.trips_.size() << ";\tMoc: " << j.occupancy_max_
+        //   << std::endl;
+        // }
       }
     }
 
@@ -219,7 +231,12 @@ struct reconstructor {
       }
 
       j.stops_ = generate_journey_stops(stops_, sched);
-      j.duration_ = 0;
+      if (!j.stops_.empty()) {
+        j.duration_ = j.stops_[j.stops_.size() - 1].arrival_.timestamp_ -
+                      j.stops_[0].departure_.timestamp_;
+      } else {
+        j.duration_ = 0;
+      }
       j.transfers_ = transfers_;
       j.db_costs_ = 0;
       j.price_ = 0;
@@ -251,10 +268,10 @@ struct reconstructor {
   journey reconstruct_journey(candidate const c, raptor_result const& result) {
     intermediate_journey ij(c.transfers_);
 
-//    std::cout << "Reconstructing new journey with " << c.transfers_
-//              << " transferes." << std::endl;
-//    std::cout << "---------------------------------------------------------"
-//              << std::endl;
+    std::cout << "Reconstructing new journey with " << +c.transfers_
+              << " transferes." << std::endl;
+    std::cout << "---------------------------------------------------------"
+              << std::endl;
 
     auto arrival_station = target_;
     auto last_departure = invalid<motis::time>;
@@ -276,12 +293,16 @@ struct reconstructor {
                                    c.trait_data_, c.trait_offset_, result);
 
           if (valid(previous_station)) {
-//            std::cout << "res_idx: " << result_idx << ";\tTook Footpath"
-//                      << ";\t\tFrom " << std::setw(6) << inc_f.from_
-//                      << ";\tArriving at " << std::setw(6) << adjusted_arrival
-//                      << ";\tTo " << std::setw(6) << arrival_station
-//                      << ";\tArriving at " << std::setw(6) << station_arrival
-//                      << std::endl;
+            std::cout
+                << "res_idx: " << result_idx << ";\tTook Footpath"
+                << ";\t\tFrom " << std::setw(6) << inc_f.from_
+                << ";\tArriving at " << std::setw(6) << adjusted_arrival << " ("
+                << motis_to_unixtime(sched_.schedule_begin_, adjusted_arrival)
+                << ")"
+                << ";\tTo " << std::setw(6) << arrival_station
+                << ";\tArriving at " << std::setw(6) << station_arrival << " ("
+                << motis_to_unixtime(sched_.schedule_begin_, station_arrival)
+                << ")" << std::endl;
 
             ij.add_footpath(arrival_station, station_arrival, last_departure,
                             inc_f.duration_, raptor_sched_);
@@ -296,8 +317,8 @@ struct reconstructor {
                                       stop_offset, raptor_sched_);
       }
 
-//      std::cout << "res_idx: " << result_idx << ";\tTook route " << std::setw(6)
-//                << used_route << ";\tFrom " << std::setw(6) << previous_station;
+      std::cout << "res_idx: " << result_idx << ";\tTook route " << std::setw(6)
+                << used_route << ";\tFrom " << std::setw(6) << previous_station;
 
       auto const to_station = arrival_station;
       arrival_station = previous_station;
@@ -306,10 +327,15 @@ struct reconstructor {
       auto const old_station_arrival = station_arrival;
       station_arrival = result[result_idx - 1][arr_idx];
 
-//      std::cout << ";\tArriving at " << std::setw(6) << station_arrival
-//                << ";\tTo " << std::setw(6) << to_station << ";\tArriving at "
-//                << std::setw(6) << old_station_arrival << ";\tTrip Id "
-//                << std::setw(3) << used_trip << std::endl;
+      std::cout << ";\tArriving at " << std::setw(6) << station_arrival << " ("
+                << motis_to_unixtime(sched_.schedule_begin_, station_arrival)
+                << ")"
+                << ";\tTo " << std::setw(6) << to_station << ";\tArriving at "
+                << std::setw(6) << old_station_arrival << " ("
+                << motis_to_unixtime(sched_.schedule_begin_,
+                                     old_station_arrival)
+                << ")"
+                << ";\tTrip Id " << std::setw(3) << used_trip << std::endl;
     }
 
     // Add last footpath if necessary

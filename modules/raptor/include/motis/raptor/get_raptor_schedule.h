@@ -57,6 +57,7 @@ struct transformable_trip {
   std::vector<raptor_lcon> lcons_;
   std::vector<stop_time> stop_times_;
   std::vector<stop_occupancy> stop_occupancies_;
+  std::string dbg_;
 };
 
 struct transformable_route {
