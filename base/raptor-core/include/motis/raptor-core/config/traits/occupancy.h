@@ -24,24 +24,7 @@ struct trait_max_occupancy {
     dt.max_occupancy_ = dimension_idx;
   }
 
-  template <typename TraitsData, typename Timetable>
-  inline static bool trip_matches_trait(TraitsData const& dt,
-                                        Timetable const& tt, uint32_t const _1,
-                                        uint32_t const _2, uint32_t const _3,
-                                        uint32_t const sti) {
-
-    auto const trip_arrival_occupancy =
-        tt.stop_occupancies_[sti].inbound_occupancy_;
-
-    return trip_arrival_occupancy <= dt.max_occupancy_;
-  }
-
   inline static uint32_t init_trait_iteration_old() {
-    return 2;  // iterate downwards
-  }
-
-  template <typename TraitsData>
-  inline static uint32_t init_trait_iteration(TraitsData const& _1) {
     return 2;  // iterate downwards
   }
 
@@ -65,7 +48,7 @@ struct trait_max_occupancy {
 
     // just check occupancy on arrival sti
     uint8_t max_occ = 0;
-    for (uint32_t sti = dep_sti+1; sti <= curr_sti; ++sti) {
+    for (uint32_t sti = dep_sti + 1; sti <= curr_sti; ++sti) {
       max_occ = std::max(max_occ, tt.stop_occupancies_[sti].inbound_occupancy_);
     }
 
@@ -77,18 +60,16 @@ struct trait_max_occupancy {
   }
 
   template <typename TraitsData>
-  inline static uint32_t next_trait_iteration(TraitsData const& aggregate_dt,
-                                              uint32_t current_trait_it) {
-    if (current_trait_it == 0) {
-      return std::numeric_limits<uint32_t>::max();
-    }
+  inline static bool is_update_required(TraitsData const& data,
+                                        uint32_t trait_idx) {
+    return trait_idx >=
+           data.max_occupancy_;  // for MOC there is trait_idx == trait_value
+  }
 
-    auto const next_it = current_trait_it - 1;
-    if (aggregate_dt.max_occupancy_ <= next_it) {
-      return next_it;
-    } else {
-      return std::numeric_limits<uint32_t>::max();
-    }
+  template <typename TraitsData>
+  inline static bool is_trait_satisfied(TraitsData const& data,
+                                        uint32_t trait_idx) {
+    return trait_idx == 0 && data.max_occupancy_ == 0;
   }
 
   template <typename TraitsData, typename Timetable>
@@ -104,6 +85,18 @@ struct trait_max_occupancy {
   template <typename TraitsData>
   inline static void reset_aggregate(TraitsData& aggregate_dt) {
     aggregate_dt.max_occupancy_ = 0;
+  }
+
+  template <typename TraitsData, typename Timetable>
+  inline static bool trip_matches_trait(TraitsData const& dt,
+                                        Timetable const& tt, uint32_t const _1,
+                                        uint32_t const _2, uint32_t const _3,
+                                        uint32_t const sti) {
+
+    auto const trip_arrival_occupancy =
+        tt.stop_occupancies_[sti].inbound_occupancy_;
+
+    return trip_arrival_occupancy <= dt.max_occupancy_;
   }
 
   // check if journey dominates candidate in max_occupancy

@@ -125,19 +125,6 @@ inline std::vector<route_id> get_routes_containing(
   return routes;
 }
 
-inline void print_route_arrivals(route_id const r_id,
-                                 raptor_timetable const& tt,
-                                 arrivals const& arrs) {
-  auto const& route = tt.routes_[r_id];
-  auto const base_rsi = route.index_to_route_stops_;
-  std::cout << "[ ";
-  for (stop_offset so = 0; so < route.stop_count_; ++so) {
-    auto const rs = tt.route_stops_[base_rsi + so];
-    std::cout << rs << ":" << arrs[rs] << " ";
-  }
-  std::cout << "]\n";
-}
-
 inline void print_route_trip_debug_strings(raptor_schedule const& rp_sched) {
   auto const& tt = rp_sched.timetable_;
   auto const routes = tt.routes_;

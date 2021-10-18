@@ -5,12 +5,13 @@
 #include <iostream>
 
 #include "motis/core/common/logging.h"
+#include "motis/raptor-core/raptor_query.h"
+#include "motis/raptor/print_raptor.h"
 #include "motis/raptor/raptor_schedule.h"
 #include "motis/raptor/raptor_statistics.h"
 
-#include "motis/raptor-core/raptor_query.h"
-
 namespace motis::raptor {
+using departure_station = std::vector<station_id>;
 
 struct mark_store {
   mark_store() = delete;
@@ -24,19 +25,24 @@ private:
   std::vector<bool> marks_;
 };
 
-inline void set_upper_bounds(std::vector<std::vector<motis::time>>& arrivals,
-                             uint8_t round_k) {
-  std::memcpy(arrivals[round_k].data(), arrivals[round_k - 1].data(),
-              arrivals[round_k].size() * sizeof(motis::time));
-}
+template <typename Config>
+struct departure_info {
+  inline void reset() {
+    dep_station_ = invalid<station_id>;
+    dep_sti_ = invalid<stop_times_index>;
+    Config::reset_traits_aggregate(aggregate_);
+  }
+
+  station_id dep_station_ = invalid<station_id>;
+  stop_times_index dep_sti_ = invalid<stop_times_index>;
+  typename Config::TraitData aggregate_{};
+};
 
 template <typename Config>
 inline trip_count get_earliest_trip(raptor_timetable const& tt,
                                     raptor_route const& route,
                                     earliest_arrivals const& prev_ea,
                                     stop_times_index const r_stop_offset) {
-
-  // TODO: check where to place trip filter
 
   station_id const stop_id =
       tt.route_stops_[route.index_to_route_stops_ + r_stop_offset];
@@ -65,26 +71,6 @@ inline trip_count get_earliest_trip(raptor_timetable const& tt,
   }
 
   return invalid<trip_count>;
-}
-
-inline trip_count get_next_trip_id(raptor_route const& route,
-                                   trip_count const current_trip) {
-
-  // get first defined earliest trip for the stop in the route
-  auto const first_trip_stop_idx = route.index_to_stop_times_;
-  auto const last_trip_stop_idx =
-      first_trip_stop_idx + (route.trip_count_ * route.stop_count_);
-
-  auto const next_trip_id = current_trip + 1;
-  auto const next_trip_stop_idx =
-      first_trip_stop_idx + (next_trip_id * route.stop_count_);
-
-  // assuming that every route has more than one stop
-  if (next_trip_stop_idx < last_trip_stop_idx) {
-    return next_trip_id;
-  } else {
-    return invalid<trip_count>;
-  }
 }
 
 template <typename Config>
@@ -147,8 +133,8 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
     //  catchable as the criteria from the configuration possibly favor
     //  a later trip because it benefits from other properties than arrival time
 
-    for (trip_count trip_id = earliest_trip_id; trip_id < invalid<trip_count>;
-         trip_id = get_next_trip_id(route, trip_id)) {
+    for (trip_count trip_id = earliest_trip_id; trip_id < route.trip_count_;
+         ++trip_id) {
 
       auto const current_stop_time_idx = route.index_to_stop_times_ +
                                          (trip_id * route.stop_count_) +
@@ -199,6 +185,33 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
   }
 }
 
+template<typename Config>
+inline bool update_stop_if_required(
+    typename Config::TraitsData const& trait_data, uint32_t trait_offset,
+    arrivals& current_round, mark_store& station_marks, earliest_arrivals& ea,
+    stop_times_index const arrival_idx, station_id stop_id,
+    stop_time const& current_stop_time) {
+
+  if (Config::is_update_required(trait_data, trait_offset)) {
+    if(current_stop_time.arrival_ < current_round[arrival_idx]) {
+      current_round[arrival_idx] = current_stop_time.arrival_;
+      station_marks.mark(stop_id);
+
+      if (current_stop_time.arrival_ < ea[stop_id]) {
+        // write the earliest arrival time for this stop after this round
+        //  as this is a lower bound for the trip search
+        ea[stop_id] = current_stop_time.arrival_;
+      }
+
+      if (Config::is_trait_satisfied(trait_data, trait_offset)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 template <typename Config>
 inline void update_route2(raptor_timetable const& tt, route_id const r_id,
                           arrivals& previous_round, arrivals& current_round,
@@ -207,76 +220,81 @@ inline void update_route2(raptor_timetable const& tt, route_id const r_id,
 
   auto const& route = tt.routes_[r_id];
 
-  station_id departure_id = invalid<station_id>;
-  stop_times_index departure_sti = invalid<stop_times_index>;
-  typename Config::TraitsData aggregate_data{};
-
+  auto const trait_size = Config::trait_size();
   uint32_t satisfied_stop_cnt = 0;
+  typename Config::TraitsData trait_data{};
 
   for (trip_count trip_id = 0; trip_id < route.trip_count_; ++trip_id) {
 
     auto const trip_first_stop_sti =
         route.index_to_stop_times_ + (trip_id * route.stop_count_);
 
-    for (station_id r_stop_offset = 0; r_stop_offset < route.stop_count_;
-         ++r_stop_offset) {
+    for (uint32_t trait_offset = 0; trait_offset < trait_size; ++trait_offset) {
+      station_id departure_station = invalid<station_id>;
 
-      station_id const stop_id =
-          tt.route_stops_[route.index_to_route_stops_ + r_stop_offset];
+      for (station_id r_stop_offset = 0; r_stop_offset < route.stop_count_;
+           ++r_stop_offset) {
 
-      auto const current_sti = trip_first_stop_sti + r_stop_offset;
+        station_id const stop_id =
+            tt.route_stops_[route.index_to_route_stops_ + r_stop_offset];
 
-      auto const current_stop_time = tt.stop_times_[current_sti];
+        auto const current_sti = trip_first_stop_sti + r_stop_offset;
 
-      // iff there is an invalid departure id
-      //     => we can skip if there is no arrival known at this stop or if the
-      //     trip can't be catched at this stop
-      if (!valid(departure_id) &&
-          (!valid(prev_ea[stop_id]) ||
-           prev_ea[stop_id] > current_stop_time.departure_)) {
+        auto const current_stop_time = tt.stop_times_[current_sti];
+        auto const arrival_idx = Config::get_arrival_idx(stop_id, trait_offset);
 
-        continue;
+        // iff there is an invalid departure id
+        //     => we can skip if there is no arrival known at this stop or if
+        //     the trip can't be catched at this stop
+        if (!valid(departure_station) &&
+            (!valid(previous_round[arrival_idx]) ||
+             previous_round[arrival_idx] > current_stop_time.departure_)) {
+          continue;
+        }
+
+        if(valid(departure_station)) {
+          Config::update_traits_aggregate(trait_data, tt, r_id, trip_id,
+                                          r_stop_offset, current_sti);
+
+          //even though the current station could soon serve as departure station
+          // it may still be that the arrival time improves
+          // for connections with the same trait offset but more transfers
+          // therefore we also want to store an arrival time for this station
+          // before it becomes the new departure station
+          update_stop_if_required<Config>(trait_data, trait_offset,
+                                          current_round, station_marks,
+                                          ea, arrival_idx, stop_id,
+                                          current_stop_time);
+        }
+
+        // if we could reach this stop in the previous round
+        //   and the stop arrival time is earlier than the trip departure time
+        //   this stop can serve as new departure stop
+        //   as a departure later in the route can't worsen but just improve
+        //   the result at the following stations it is preferred to reset
+        //   the departure stop in these cases
+        if (previous_round[arrival_idx] <= current_stop_time.departure_) {
+
+          departure_station = stop_id;
+          Config::reset_traits_aggregate(trait_data);
+
+          // we can't improve the arrival time on the station the trip was
+          // boarded
+          continue;
+        }
+
+        update_stop_if_required<Config>(trait_data, trait_offset, current_round,
+                                        station_marks, ea, arrival_idx,
+                                        stop_id, current_stop_time);
       }
 
-      if (!valid(departure_id)) {
-        departure_id = stop_id;
-        departure_sti = current_sti;
-        Config::reset_traits_aggregate(aggregate_data);
-
-        // we can't improve the arrival time on the station the trip was boarded
-        continue;
-      }
-
-      Config::update_traits_aggregate(aggregate_data, tt, r_id, trip_id,
-                                      r_stop_offset, current_sti);
-
-      auto [min_arrival_update, traits_satisfied] =
-          Config::check_and_update_arrivals(
-              previous_round, current_round, tt, aggregate_data, departure_id,
-              stop_id, departure_sti, current_sti);
-
-      if (valid(min_arrival_update)) {
-        station_marks.mark(stop_id);
-      }
-
-      if (min_arrival_update < ea[stop_id]) {
-        // write the earliest arrival time for this stop after this round
-        //  as this is a lower bound for the trip search
-        ea[stop_id] = min_arrival_update;
-      }
-
-      if (traits_satisfied) {
-        ++satisfied_stop_cnt;
-      }
+      Config::reset_traits_aggregate(trait_data);
     }
 
-    if (satisfied_stop_cnt == route.stop_count_) {
+    if (satisfied_stop_cnt == route.stop_count_ - 1) {
+      // we can't reach satisfaction for the first stop
       break;
     }
-
-    departure_id = invalid<station_id>;
-    departure_sti = invalid<stop_times_index>;
-    Config::reset_traits_aggregate(aggregate_data);
   }
 }
 
@@ -344,13 +362,14 @@ template <typename Config>
 inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
                               const raptor_schedule& raptor_sched) {
   auto const& tt = raptor_sched.timetable_;
-
   auto& result = *query.result_;
-//  std::cout << "Received Query: " << std::endl;
-//  std::cout << "Start Station:  " << std::setw(7) << +query.source_ << " -> "
-//            << std::setw(6) << +query.source_time_begin_ << std::endl;
-//  std::cout << "End Station:    " << std::setw(7) << +query.target_
-//            << std::endl;
+
+#ifdef _DEBUG
+  print_query(query);
+  //print_route(34, tt);
+  //print_stations(raptor_sched);
+  //print_route_trip_debug_strings(raptor_sched);
+#endif
 
   // TODO: also check whether one of prev_ea or ea can be eliminated
   earliest_arrivals prev_ea(tt.stop_count(), invalid<motis::time>);
@@ -408,23 +427,8 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
     std::memset(ea.data(), invalid<motis::time>,
                 ea.size() * sizeof(motis::time));
   }
-  //
-  //  auto const trait_size = Config::trait_size();
-  //  for (int round_k = 0; round_k < max_round_k; ++round_k) {
-  //    std::cout << "Results Round " << +round_k << std::endl;
-  //    for (int i = 0; i < tt.stop_count(); ++i) {
-  //      for (int j = 0; j < trait_size; ++j) {
-  //        if (valid(result[round_k][(i * trait_size) + j]))
-  //          std::cout << "Stop Id: " << std::setw(7) << +i << " -> "
-  //                    << std::setw(6) << +result[round_k][(i * trait_size) +
-  //                    j]
-  //                    << "; Arrival Idx: " << std::setw(6)
-  //                    << +((i * trait_size) + j)
-  //                    << "; Trait Offset: " << std::setw(4) << +j <<
-  //                    std::endl;
-  //      }
-  //    }
-  //  }
+
+  // print_results<Config>(result, tt);
 }
 
 }  // namespace motis::raptor
