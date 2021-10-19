@@ -63,10 +63,10 @@ struct config {
                                          Timetable const& tt,
                                          uint32_t const route_id,
                                          uint32_t const trip_id,
-                                         uint32_t const stop_offset,
-                                         uint32_t const stop_time_idx) {
-    return Traits::trip_matches_traits(dt, tt, route_id, trip_id, stop_offset,
-                                       stop_time_idx);
+                                         uint32_t const dep_stop_offset,
+                                         uint32_t const arr_stop_offset) {
+    return Traits::trip_matches_traits(dt, tt, route_id, trip_id, dep_stop_offset,
+                                       arr_stop_offset);
   }
 
   // check if a candidate journey dominates a given journey by checking on the

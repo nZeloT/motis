@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <tuple>
+#include <algorithm>
 
 namespace motis::raptor {
 
@@ -89,14 +90,24 @@ struct trait_max_occupancy {
 
   template <typename TraitsData, typename Timetable>
   inline static bool trip_matches_trait(TraitsData const& dt,
-                                        Timetable const& tt, uint32_t const _1,
-                                        uint32_t const _2, uint32_t const _3,
-                                        uint32_t const sti) {
+                                        Timetable const& tt,
+                                        uint32_t const r_id,
+                                        uint32_t const t_id,
+                                        uint32_t const dep_offset,
+                                        uint32_t const arr_offset) {
+    auto const route = tt.routes_[r_id];
+    auto const dep_sti =
+        route.index_to_stop_times_ + (route.stop_count_ * t_id) + dep_offset;
+    auto const arr_sti =
+        route.index_to_stop_times_ + (route.stop_count_ * t_id) + arr_offset;
 
-    auto const trip_arrival_occupancy =
-        tt.stop_occupancies_[sti].inbound_occupancy_;
+    uint8_t max_occ = 0;
+    for (auto sti = (dep_sti + 1); sti <= arr_sti; ++sti) {
+      max_occ =
+          std::max(max_occ, tt.stop_occupancies_[sti].inbound_occupancy_);
+    }
 
-    return trip_arrival_occupancy <= dt.max_occupancy_;
+    return max_occ <= dt.max_occupancy_;
   }
 
   // check if journey dominates candidate in max_occupancy

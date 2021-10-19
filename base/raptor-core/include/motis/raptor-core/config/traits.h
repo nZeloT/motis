@@ -33,10 +33,10 @@ struct traits<FirstTrait, RestTraits...> {
   template <typename Timetable>
   inline static bool trip_matches_traits(
       TraitsData const& dt, Timetable const& tt, uint32_t const r_id,
-      uint32_t const t_id, uint32_t const s_offset, uint32_t const sti) {
-    return FirstTrait::trip_matches_trait(dt, tt, r_id, t_id, s_offset, sti) &&
+      uint32_t const t_id, uint32_t const dep_offset, uint32_t const arr_offset) {
+    return FirstTrait::trip_matches_trait(dt, tt, r_id, t_id, dep_offset, arr_offset) &&
            traits<RestTraits...>::trip_matches_traits(dt, tt, r_id, t_id,
-                                                      s_offset, sti);
+                                                      dep_offset, arr_offset);
   }
 
   template <typename Timetable, typename TimeVal>
@@ -142,8 +142,8 @@ struct traits<> {
   inline static bool trip_matches_traits(Data const& dt, Timetable const& tt,
                                          uint32_t const r_id,
                                          uint32_t const t_id,
-                                         uint32_t const s_offset,
-                                         uint32_t const sti) {
+                                         uint32_t const dep_offset,
+                                         uint32_t const arr_offset) {
     return true;
   }
 

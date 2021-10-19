@@ -407,15 +407,16 @@ struct reconstructor {
           continue;
         }
 
-        auto const arrival_trip = get_arrival_trip_at_station(
-            r_id, stop_arrival, offset, traits_data);
+        auto const arrival_trip =
+            get_arrival_trip_at_station(r_id, stop_arrival, offset);
 
         if (!valid(arrival_trip)) {
           continue;
         }
 
         auto const board_station = get_board_station_for_trip(
-            r_id, arrival_trip, result, result_idx - 1, trait_offset, offset);
+            r_id, arrival_trip, result, result_idx - 1, trait_offset,
+            traits_data, offset);
 
         if (valid(board_station)) {
           return {board_station, r_id, arrival_trip, offset};
@@ -429,16 +430,13 @@ struct reconstructor {
 
   trip_id get_arrival_trip_at_station(route_id const r_id,
                                       motis::time const arrival,
-                                      stop_offset const offset,
-                                      TraitsData const& trait_data) {
+                                      stop_offset const offset) {
     auto const& route = timetable_.routes_[r_id];
 
     for (auto trip = 0; trip < route.trip_count_; ++trip) {
       auto const sti =
           route.index_to_stop_times_ + (trip * route.stop_count_) + offset;
-      if (timetable_.stop_times_[sti].arrival_ == arrival &&
-          Config::trip_matches_traits(trait_data, timetable_, r_id, trip,
-                                      offset, sti)) {
+      if (timetable_.stop_times_[sti].arrival_ == arrival) {
         return trip;
       }
     }
@@ -450,6 +448,7 @@ struct reconstructor {
                                         raptor_result const& result,
                                         raptor_round const result_idx,
                                         int const trait_offset,
+                                        TraitsData const& trait_data,
                                         stop_offset const arrival_offset) {
     auto const& r = timetable_.routes_[r_id];
 
@@ -467,7 +466,9 @@ struct reconstructor {
       auto const departure = timetable_.stop_times_[sti].departure_;
 
       auto const arr_idx = Config::get_arrival_idx(station_id, trait_offset);
-      if (result[result_idx][arr_idx] <= departure) {
+      if (result[result_idx][arr_idx] <= departure &&
+          Config::trip_matches_traits(trait_data, timetable_, r_id, t_id,
+                                      stop_offset, arrival_offset)) {
         return station_id;
       }
     }
