@@ -235,12 +235,17 @@ list(FIND modules "path" MOTIS_PATH_MODULE_ENABLE)
 if(${MOTIS_PATH_MODULE_ENABLE} GREATER -1)
   set(motis-test-extra-dependencies "motis-path-prepare")
 endif()
+list(FIND modules "raptor" MOTIS_RAPTOR_MODULE_ENABLE)
+if(${MOTIS_RAPTOR_MODULE_ENABLE} GREATER -1)
+  set(motis-test-extra-dependencies-raptor "raptor-core")
+endif()
 
 target_compile_options(motis-test PRIVATE ${MOTIS_CXX_FLAGS})
 target_compile_definitions(motis-test PRIVATE ${MOTIS_COMPILE_DEFINITIONS})
 target_link_libraries(motis-test
   ${module-targets}
   ${motis-test-extra-dependencies}
+  ${motis-test-extra-dependencies-raptor}
   motis-bootstrap
   motis-core
   motis-loader

@@ -13,6 +13,14 @@ namespace raptor {
 
 using namespace motis::routing;
 
+station_id checked_eva_to_raptor_id(raptor_schedule const& sched, std::string const& eva) {
+  try {
+    return sched.eva_to_raptor_id_.at(eva);
+  }catch(std::out_of_range const&) {
+    throw std::system_error{error::source_station_not_in_schedule};
+  }
+}
+
 base_query get_base_query(RoutingRequest const* routing_request,
                           schedule const& sched,
                           raptor_schedule const& raptor_sched) {
@@ -57,17 +65,8 @@ base_query get_base_query(RoutingRequest const* routing_request,
     default: break;
   }
 
-  try {
-    q.source_ = raptor_sched.eva_to_raptor_id_.at(start_eva);
-  }catch(std::out_of_range const&) {
-    throw std::system_error{error::source_station_not_in_schedule};
-  }
-  try{
-    q.target_ = raptor_sched.eva_to_raptor_id_.at(target_eva);
-  }catch(std::out_of_range const&) {
-    throw std::system_error{error::target_station_not_in_schedule};
-  }
-
+  q.source_ = checked_eva_to_raptor_id(raptor_sched, start_eva);
+  q.target_ = checked_eva_to_raptor_id(raptor_sched, target_eva);
   return q;
 }
 

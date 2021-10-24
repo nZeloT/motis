@@ -1,3 +1,5 @@
+#pragma once
+
 #include "motis/module/module.h"
 
 #include "motis/core/journey/journey.h"
