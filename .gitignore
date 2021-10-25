@@ -40,4 +40,9 @@ callgrind.out.*
 /.clangd
 /compile_commands.json
 /data*
-/gtfs_tools
+/gtfs_tools/gtfstidy*
+/gtfs_tools/gtfs-xtract/target
+/gtfs_tools/gtfs-xtract/.idea
+.git
+.pkg.lock
+.pkg.mutex
