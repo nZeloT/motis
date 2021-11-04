@@ -3,16 +3,19 @@
 #include <fstream>
 #include <numeric>
 #include <tuple>
+#include <unordered_map>
 
 #include "motis/core/common/logging.h"
+#include "motis/core/schedule/trip.h"
 #include "motis/core/access/station_access.h"
 #include "motis/core/access/trip_iterator.h"
-#include "motis/core/schedule/trip.h"
 
 #include "motis/raptor/raptor_util.h"
 
+#include "motis/raptor/debug_utils.h"
 #include "motis/raptor/route_conflict_graph.h"
 
+#include "utl/get_or_create.h"
 #include "utl/parallel_for.h"
 
 namespace motis::raptor {
@@ -148,8 +151,6 @@ void init_routes(schedule const& sched, transformable_timetable& ttt) {
                                    from_in_allowed, to_out_allowed, &lc);
       }
 
-
-
       t_trip.stop_times_ = get_stop_times_from_lcons(t_trip.lcons_);
       t_trip.stop_occupancies_ = get_stop_occupancies_from_lcons(t_trip.lcons_);
       t_trip.dbg_ = std::string{trip->dbg_.str()};
@@ -179,9 +180,10 @@ void add_footpaths(schedule const& sched, transformable_timetable& ttt) {
   }
 }
 
-std::tuple<raptor_timetable, std::vector<std::string>> create_raptor_timetable(transformable_timetable const& ttt) {
+std::tuple<raptor_timetable, schedule_debug> create_raptor_timetable(
+    transformable_timetable const& ttt) {
   raptor_timetable tt;
-  std::vector<std::string> route_trip_dbg{};
+  schedule_debug dbg{};
 
   tt.stops_.reserve(ttt.stations_.size() + 1);
 
@@ -213,14 +215,18 @@ std::tuple<raptor_timetable, std::vector<std::string>> create_raptor_timetable(t
     auto tc = static_cast<trip_count>(t_route.trips_.size());
     auto stop_times_idx = static_cast<stop_times_index>(tt.stop_times_.size());
     auto rs_idx = static_cast<route_stops_index>(tt.route_stops_.size());
-    auto rt_dbg_idx = static_cast<route_debug_index>(route_trip_dbg.size());
+    auto rt_dbg_idx = static_cast<route_debug_index>(
+        dbg.raptor_route_trip_to_trip_debug_.size());
 
-    std::for_each(std::begin(t_route.trips_), std::end(t_route.trips_), [&route_trip_dbg](transformable_trip const& el) {
-      route_trip_dbg.emplace_back(std::string{el.dbg_});
-    });
+    std::for_each(std::begin(t_route.trips_), std::end(t_route.trips_),
+                  [&dbg, r_id, rt_dbg_idx](transformable_trip const& el) {
+                    trip_id t_id = dbg.raptor_route_trip_to_trip_debug_.size() -
+                                   rt_dbg_idx;
+                    dbg.insert_dbg(el.dbg_, r_id, t_id);
+                  });
 
-    tt.routes_.emplace_back(tc, sc, stop_times_idx, rs_idx,
-                            t_route.stand_time_, rt_dbg_idx);
+    tt.routes_.emplace_back(tc, sc, stop_times_idx, rs_idx, t_route.stand_time_,
+                            rt_dbg_idx);
 
     for (auto const& trip : t_route.trips_) {
       append_vector(tt.stop_times_, trip.stop_times_);
@@ -232,9 +238,10 @@ std::tuple<raptor_timetable, std::vector<std::string>> create_raptor_timetable(t
   auto stop_times_idx = static_cast<stop_times_index>(tt.stop_times_.size());
   auto rs_idx = static_cast<route_stops_index>(tt.route_stops_.size());
 
-  tt.routes_.emplace_back(0, 0, stop_times_idx, rs_idx, invalid<motis::time>, 0);
+  tt.routes_.emplace_back(0, 0, stop_times_idx, rs_idx, invalid<motis::time>,
+                          0);
 
-  return std::make_tuple(tt, route_trip_dbg);
+  return std::make_tuple(tt, dbg);
 }
 
 partitioning get_partitioning(std::string const& filepath) {
@@ -570,10 +577,10 @@ std::unique_ptr<raptor_schedule> transformable_to_schedule(
     }
   }
 
-  auto [ raptor_tt, route_dbg_idx] = create_raptor_timetable(ttt);
+  auto [raptor_tt, sched_dbg] = create_raptor_timetable(ttt);
 
   raptor_sched->timetable_ = std::move(raptor_tt);
-  raptor_sched->raptor_route_trip_to_trip_debug_ = std::move(route_dbg_idx);
+  raptor_sched->dbg_ = std::move(sched_dbg);
 
   // preadd the transfer times
   for (auto const& route : raptor_sched->timetable_.routes_) {

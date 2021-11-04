@@ -10,7 +10,7 @@ struct stop {
   stop(unsigned int index, unsigned int station_id, unsigned int a_track,
        unsigned int d_track, time a_time, time d_time, time a_sched_time,
        time d_sched_time, timestamp_reason a_reason, timestamp_reason d_reason,
-       bool exit, bool enter)
+       bool exit, bool enter, uint8_t occupancy = 0)
       : index_(index),
         station_id_(station_id),
         a_track_(a_track),
@@ -22,7 +22,8 @@ struct stop {
         a_reason_(a_reason),
         d_reason_(d_reason),
         exit_(exit),
-        enter_(enter) {}
+        enter_(enter),
+        occupancy_{occupancy}{}
 
   unsigned int index_;
   unsigned int station_id_;
@@ -31,6 +32,7 @@ struct stop {
   time a_sched_time_, d_sched_time_;
   timestamp_reason a_reason_, d_reason_;
   bool exit_, enter_;
+  uint8_t occupancy_;
 };
 
 }  // namespace motis::routing::output::intermediate

@@ -7,8 +7,7 @@
 #include "motis/raptor-core/raptor_timetable.h"
 #include "motis/raptor/raptor_schedule.h"
 
-namespace motis {
-namespace raptor {
+namespace motis::raptor {
 
 inline std::string get_string(station_id const s_id,
                               raptor_schedule const& sched) {
@@ -133,7 +132,7 @@ inline void print_route_trip_debug_strings(raptor_schedule const& rp_sched) {
     auto const route = routes[i];
     for (int j = 0; j < routes[i].trip_count_; ++j) {
       auto const dbg =
-          rp_sched
+          rp_sched.dbg_
               .raptor_route_trip_to_trip_debug_[route.index_to_trip_dbg_ + j];
       std::cout << "Route: " << std::setw(4) << +i
                 << ";\tTrip: " << std::setw(3) << j << ";\tDbg: " << dbg
@@ -169,5 +168,4 @@ inline void print_results(raptor_result const& result,
   }
 }
 
-}  // namespace raptor
-}  // namespace motis
+}  // namespace motis::raptor

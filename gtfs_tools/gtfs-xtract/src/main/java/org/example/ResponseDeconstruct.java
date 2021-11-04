@@ -14,12 +14,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+
+
 public class ResponseDeconstruct {
 
   class RaptorStop extends Stop {
-    public RaptorStop(JSONObject stop) {
-      super(stop);
-      this.raptor_stop_id = eva_to_id.get(this.eva_no);
+    public RaptorStop(int idx, JSONObject stop) {
+      super(idx, stop);
+      if(USE_RAPTOR_IDS)
+        this.raptor_stop_id = eva_to_id.get(this.eva_no);
+      else
+        this.raptor_stop_id = 0L;
     }
 
     public final long raptor_stop_id;
@@ -35,16 +40,18 @@ public class ResponseDeconstruct {
       var range = (JSONObject) trip.get("range");
       var dbg = (String) trip.get("debug");
       dbg = dbg.substring(0, dbg.indexOf(':'));
+      this.trip_dbg = dbg;
+
+      if(USE_RAPTOR_IDS) {
+        this.raptor_ids = dbg_to_route_trips.get(dbg);
+        if (this.raptor_ids == null) throw new IllegalStateException("Trip!");
+      }
 
       long fromIdx = (Long) range.get("from");
       long toIdx = (Long) range.get("to");
 
       this.from = conn_stops.get((int) fromIdx);
       this.to = conn_stops.get((int) toIdx);
-
-      this.trip_dbg = dbg;
-      this.raptor_ids = dbg_to_route_trips.get(dbg);
-      if (this.raptor_ids == null) throw new IllegalStateException("Trip!");
     }
 
     String trip_dbg;
@@ -60,8 +67,8 @@ public class ResponseDeconstruct {
 
   class RaptorConnection extends AbstractConnection<RaptorStop> {
     @Override
-    public RaptorStop newStop(JSONObject st) {
-      return new RaptorStop(st);
+    public RaptorStop newStop(int idx, JSONObject st) {
+      return new RaptorStop(idx, st);
     }
 
     public RaptorConnection(JSONObject conn) {
@@ -74,7 +81,7 @@ public class ResponseDeconstruct {
         var tr = (JSONObject) t;
         var curr = new Trip(tr, super.stops);
         if (prev != null) {
-          if (prev.to.raptor_stop_id != curr.from.raptor_stop_id) {
+          if (!prev.to.eva_no.equals(curr.from.eva_no)) {
             //insert FP
             this.trips.add(new Footpath(prev.to, curr.from));
           }
@@ -102,12 +109,22 @@ public class ResponseDeconstruct {
 
         bld.append("     Using: ");//indent
         if (leg instanceof Trip trip) {
-          bld.append(String.format("%-28s", trip.trip_dbg)).append(" Route: ").append(String.format("%3d", trip.raptor_ids.route_id)).append("; Trip Ids: ");
-          var tripIds = trip.raptor_ids.trip_ids;
-          bld.append(tripIds.get(0));
-          for(int j = 1; j < tripIds.size(); j++) {
-            bld.append(", ");
-            bld.append(tripIds.get(j));
+          bld.append(String.format("%-28s", trip.trip_dbg));
+          if(USE_RAPTOR_IDS) {
+            bld.append(" Route: ").append(String.format("%3d", trip.raptor_ids.route_id)).append("; Trip Ids: ");
+            var tripIds = trip.raptor_ids.trip_ids;
+            bld.append(tripIds.get(0));
+            for (int j = 1; j < tripIds.size(); j++) {
+              bld.append(", ");
+              bld.append(tripIds.get(j));
+            }
+          }
+          bld.append(";\t").append("Inb. Occupancies (").append(trip.to.idx - trip.from.idx).append(")): ");
+          var stop = stops.get(trip.from.idx);
+          bld.append("[").append(stop.inbound_occ).append("]");
+          for(int j = trip.from.idx+1; j <= trip.to.idx; j++) {
+            stop = stops.get(j);
+            bld.append(", ").append(stop.inbound_occ);
           }
           bld.append("\n");
         } else {
@@ -141,8 +158,10 @@ public class ResponseDeconstruct {
   HashMap<String, RouteTrips> dbg_to_route_trips;
 
   ResponseDeconstruct(List<String> eva_to_stops, List<String> dbg_to_routes) {
-    init_eva_to_stops(eva_to_stops);
-    init_dbg_to_routes(dbg_to_routes);
+    if(USE_RAPTOR_IDS) {
+      init_eva_to_stops(eva_to_stops);
+      init_dbg_to_routes(dbg_to_routes);
+    }
   }
 
   void init_eva_to_stops(List<String> eva_to_stops) {
@@ -191,9 +210,12 @@ public class ResponseDeconstruct {
 
   public static void main(String[] args) throws IOException, ParseException {
     var responses = Files.readAllLines(Path.of("./responses.txt"));
-    var eva_to_stop = Files.readAllLines(Path.of("./eva_to_stop.txt"));
-    var dbg_to_route_trips = Files.readAllLines(Path.of("./dbg_to_route_trips.txt"));
-
+    var eva_to_stop = new ArrayList<String>();
+    var dbg_to_route_trips = new ArrayList<String>();
+    if(USE_RAPTOR_IDS) {
+      eva_to_stop.addAll(Files.readAllLines(Path.of("./eva_to_stop.txt")));
+      dbg_to_route_trips.addAll(Files.readAllLines(Path.of("./dbg_to_route_trips.txt")));
+    }
     var deconstructor = new ResponseDeconstruct(eva_to_stop, dbg_to_route_trips);
     var parser = new JSONParser();
 
@@ -214,4 +236,5 @@ public class ResponseDeconstruct {
 
   }
 
+  static final boolean USE_RAPTOR_IDS = false;
 }

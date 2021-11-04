@@ -134,11 +134,13 @@ struct reconstructor {
         if (j.duration_ <= 86400) {
           journeys_.push_back(j);
         }
-        // else{
-        //   std::cout << "Filtered journey with duration " << +j.duration_ <<
-        //   ";\tTrips: " << +j.trips_.size() << ";\tMoc: " << j.occupancy_max_
-        //   << std::endl;
-        // }
+#ifdef _DEBUG
+        else{
+           std::cout << "Filtered journey with duration " << +j.duration_ <<
+           ";\tTrips: " << +j.trips_.size() << ";\tMoc: " << j.occupancy_max_
+           << std::endl;
+        }
+#endif
       }
     }
 
@@ -191,6 +193,7 @@ struct reconstructor {
 
         auto const sti = sti_base + s_offset;
         auto const stop_time = tt.stop_times_[sti];
+        auto const stop_occ = tt.stop_occupancies_[sti];
 
         auto const d_time = stop_time.departure_;
         auto const tt = raptor_sched.transfer_times_[s_id];
@@ -204,7 +207,8 @@ struct reconstructor {
 
         stops_.emplace_back(stops_.size(), motis_index, 0, 0, a_time, d_time,
                             a_time, d_time, timestamp_reason::SCHEDULE,
-                            timestamp_reason::SCHEDULE, false, false);
+                            timestamp_reason::SCHEDULE, false, false,
+                            stop_occ.inbound_occupancy_);
 
         auto const lcon = raptor_sched.lcon_ptr_[sti];
         transports_.emplace_back(stops_.size() - 1, stops_.size(), lcon);

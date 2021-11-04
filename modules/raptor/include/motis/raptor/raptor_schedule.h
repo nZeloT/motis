@@ -3,6 +3,7 @@
 #include "motis/core/schedule/connection.h"
 
 #include "motis/raptor-core/raptor_timetable.h"
+#include "motis/raptor/debug_utils.h"
 
 namespace motis {
 namespace raptor {
@@ -16,7 +17,6 @@ struct raptor_schedule {
 
   std::unordered_map<std::string, station_id> eva_to_raptor_id_;
   std::vector<std::string> raptor_id_to_eva_;
-  std::vector<std::string> raptor_route_trip_to_trip_debug_;
   std::vector<unsigned> station_id_to_index_;
   std::vector<motis::time> transfer_times_;
 
@@ -34,6 +34,8 @@ struct raptor_schedule {
 
   // duration REDUCED by the transfer times from the departure station
   std::vector<std::vector<raptor_incoming_footpath>> incoming_footpaths_;
+
+  schedule_debug dbg_;
 
   partitioning partitioning_;
   cls_station_id_glb total_border_stations_;

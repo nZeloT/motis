@@ -12,7 +12,7 @@ public class QueryRewriteSearchType {
 
   public static void main(String[] args) throws IOException, ParseException {
 
-    var requests = Files.readAllLines(Path.of("./data/queries/queries-fwd-routing.txt"));
+    var requests = Files.readAllLines(Path.of("./verification/q-raptor_cpu-def.txt"));
     var outBuffer = new ArrayList<String>();
 
     for(var line : requests) {
@@ -20,6 +20,6 @@ public class QueryRewriteSearchType {
       outBuffer.add(out);
     }
 
-    Files.write(Path.of("./data/queries/queries-fwd-routing-moc.txt"), outBuffer);
+    Files.write(Path.of("./verification/q-raptor_cpu-moc.txt"), outBuffer);
   }
 }

@@ -14,3 +14,5 @@
 "TC5-2","T5","TC5-2-TR1","TC5-2-TR1","TC5-2 Trip 1",0
 "TC5-3","T5","TC5-3-TR1","TC5-3-TR1","TC5-3 Trip 1",0
 "TC5-3","T5","TC5-3-TR2","TC5-3-TR2","TC5-3 Trip 2",0
+"TC6","T6","TC6-TR1","TC6-TR1","TC6 Trip 1",0
+"TC7","T7","TC7-TR1","TC7-TR1","TC7 Trip 1",0

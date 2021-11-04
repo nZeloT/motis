@@ -54,3 +54,46 @@ endif()
 
 target_compile_options(motis-raptor PRIVATE ${MOTIS_CXX_FLAGS})
 target_compile_definitions(motis-raptor PRIVATE ${MOTIS_COMPILE_DEFINITIONS})
+
+
+file(GLOB_RECURSE motis-validator-files eval/src/validate.cc)
+add_executable(motis-validator EXCLUDE_FROM_ALL ${motis-validator-files})
+target_compile_features(motis-validator PUBLIC cxx_std_17)
+target_link_libraries(motis-validator
+        motis-bootstrap
+        motis-core
+        motis-module
+        conf
+        ${CMAKE_THREAD_LIBS_INIT}
+        ianatzdb-res
+)
+target_compile_options(motis-validator PRIVATE ${MOTIS_CXX_FLAGS})
+set_target_properties(motis-validator PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+file(GLOB_RECURSE motis-print-raptor-files eval/src/print_raptor.cc)
+add_executable(motis-print-raptor EXCLUDE_FROM_ALL ${motis-print-raptor-files})
+target_compile_features(motis-print-raptor PUBLIC cxx_std_17)
+target_link_libraries(motis-print-raptor
+        motis-bootstrap
+        motis-core
+        motis-module
+        conf
+        ${CMAKE_THREAD_LIBS_INIT}
+        ianatzdb-res
+        )
+target_compile_options(motis-print-raptor PRIVATE ${MOTIS_CXX_FLAGS})
+set_target_properties(motis-print-raptor PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+file(GLOB_RECURSE motis-xtract-gtfs-files eval/src/gtfs-xtract.cc)
+add_executable(motis-xtract-gtfs EXCLUDE_FROM_ALL ${motis-xtract-gtfs-files})
+target_compile_features(motis-xtract-gtfs PUBLIC cxx_std_17)
+target_link_libraries(motis-xtract-gtfs
+        motis-bootstrap
+        motis-core
+        motis-module
+        conf
+        ${CMAKE_THREAD_LIBS_INIT}
+        ianatzdb-res
+        )
+target_compile_options(motis-xtract-gtfs PRIVATE ${MOTIS_CXX_FLAGS})
+set_target_properties(motis-xtract-gtfs PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")

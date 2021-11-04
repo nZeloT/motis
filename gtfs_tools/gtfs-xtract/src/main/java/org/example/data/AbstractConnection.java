@@ -12,17 +12,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 public abstract class AbstractConnection<ST extends Stop> {
-  public abstract ST newStop(JSONObject st);
+  public abstract ST newStop(int idx, JSONObject st);
 
   public AbstractConnection(JSONObject conn) {
     var stops = (JSONArray) conn.get("stops");
     var trips = (JSONArray) conn.get("trips");
-    this.moc = (Long) conn.get("max_occupancy");
+    if(conn.containsKey("max_occupancy"))
+      this.moc = (Long) conn.get("max_occupancy");
+    else{
+      var ucriteris = (JSONObject)conn.get("ucriteria");
+      this.moc = (Long) ucriteris.get("occupancy_max");
+    }
 
     this.stops = new ArrayList<>();
-    for (var s : stops) {
-      var st = (JSONObject) s;
-      this.stops.add(newStop(st));
+    for (int i = 0, stopsSize = stops.size(); i < stopsSize; i++) {
+      var st = (JSONObject) stops.get(i);
+      this.stops.add(newStop(i, st));
     }
 
     this.unix_arr_time = this.stops.get(this.stops.size() - 1).unix_arr_time;

@@ -20,6 +20,8 @@
 #include "motis/bootstrap/dataset_settings.h"
 #include "motis/bootstrap/motis_instance.h"
 
+#include "motis/protocol/RoutingRequest_generated.h"
+
 using namespace flatbuffers;
 using namespace motis;
 using namespace motis::bootstrap;
@@ -38,6 +40,11 @@ struct generator_settings : public conf::configuration {
     param(large_stations_, "large_stations",
           "use only large stations as start/destination");
     param(query_type_, "query_type", "query type: pretrip|ontrip_station");
+    param(
+        search_type_, "search_type",
+        "search_type: "
+        "Default|SingleCriterion|SingleCriterionNoIntercity|LateConnections|"
+        "LateConnectionsTest|Accessibility|DefaultPrice|DefaultPriceRegional");
     param(targets_, "targets",
           "message target urls. for every url query files will be generated");
   }
@@ -59,11 +66,22 @@ struct generator_settings : public conf::configuration {
     }
   }
 
+  SearchType get_search_type() const {
+    auto const type_names = EnumNamesSearchType();
+    for(int i = SearchType_MIN; i < SearchType_MAX; ++i) {
+      if(search_type_ == type_names[i]) {
+        return static_cast<SearchType>(i);
+      }
+    }
+    return SearchType_Default;
+  }
+
   int query_count_{1000};
   std::string target_file_fwd_{"queries-fwd-${target}.txt"};
   std::string target_file_bwd_{"queries-bwd-${target}.txt"};
   bool large_stations_{false};
   std::string query_type_{"pretrip"};
+  std::string search_type_{"Default"};
   std::vector<std::string> targets_{"/routing"};
 };
 
@@ -144,7 +162,7 @@ static It rand_in(It begin, It end) {
 std::string query(std::string const& target, Start const start_type, int id,
                   unixtime interval_start, unixtime interval_end,
                   std::string const& from_eva, std::string const& to_eva,
-                  SearchDir const dir) {
+                  SearchDir const dir, SearchType const search_type) {
   message_creator fbb;
   auto const interval = Interval(interval_start, interval_end);
   fbb.create_and_finish(
@@ -166,7 +184,7 @@ std::string query(std::string const& target, Start const start_type, int id,
                     .Union(),
           CreateInputStation(fbb, fbb.CreateString(to_eva),
                              fbb.CreateString("")),
-          SearchType_Default, dir, fbb.CreateVector(std::vector<Offset<Via>>()),
+          search_type, dir, fbb.CreateVector(std::vector<Offset<Via>>()),
           fbb.CreateVector(std::vector<Offset<AdditionalEdgeWrapper>>()),
           start_type == Start_PretripStart, start_type == Start_PretripStart)
           .Union(),
@@ -343,7 +361,8 @@ int main(int argc, char const** argv) {
     bwd_ofstreams.emplace_back(bwd_fn);
   }
 
-  auto const start_type = generator_opt.get_start_type();
+  auto const start_type  = generator_opt.get_start_type();
+  auto const search_type = generator_opt.get_search_type();
   for (int i = 1; i <= generator_opt.query_count_; ++i) {
     auto interval = interval_gen.random_interval();
     auto evas = random_station_ids(sched, station_nodes, interval.first,
@@ -355,10 +374,10 @@ int main(int argc, char const** argv) {
       auto& out_bwd = bwd_ofstreams[f_idx];
 
       out_fwd << query(target, start_type, i, interval.first, interval.second,
-                       evas.first, evas.second, SearchDir_Forward)
+                       evas.first, evas.second, SearchDir_Forward, search_type)
               << "\n";
       out_bwd << query(target, start_type, i, interval.first, interval.second,
-                       evas.first, evas.second, SearchDir_Backward)
+                       evas.first, evas.second, SearchDir_Backward, search_type)
               << "\n";
     }
   }

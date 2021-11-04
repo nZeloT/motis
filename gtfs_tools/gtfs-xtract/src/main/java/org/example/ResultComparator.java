@@ -10,22 +10,48 @@ import org.json.simple.parser.ParseException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ResultComparator {
+  static class CompareTrip {
+    public CompareTrip(JSONObject trip, List<Stop> stops) {
+      var range = (JSONObject) trip.get("range");
+
+      long fromIdx = (Long) range.get("from");
+      long toIdx = (Long) range.get("to");
+
+      this.from = stops.get((int) fromIdx);
+      this.to = stops.get((int) toIdx);
+    }
+
+    final Stop from;
+    final Stop to;
+  }
 
   static class CompareConnection extends AbstractConnection<Stop> {
     public final long query_id;
-    public List<Integer> dominatesConnIdx;
+    List<CompareTrip> trips;
 
     @Override
-    public Stop newStop(JSONObject st) {
-      return new Stop(st);
+    public Stop newStop(int idx, JSONObject st) {
+      return new Stop(idx, st);
     }
 
     public CompareConnection(long id, JSONObject connection) {
       super(connection);
       this.query_id = id;
+
+      this.trips = new ArrayList<>();
+      var trips = (JSONArray) connection.get("trips");
+      for (var t : trips) {
+        var tr = (JSONObject) t;
+        var curr = new CompareTrip(tr, super.stops);
+        this.trips.add(curr);
+      }
     }
 
     public String toString(boolean mocRelevant) {
@@ -33,7 +59,7 @@ public class ResultComparator {
     }
 
     public boolean dominates(CompareConnection toDominate, boolean mocRelevant) {
-      if(toDominate == null) return true;
+      if (toDominate == null) return true;
 
       return tripCount <= toDominate.tripCount && (!mocRelevant || moc <= toDominate.moc) && unix_arr_time <= toDominate.unix_arr_time;
     }
@@ -47,10 +73,21 @@ public class ResultComparator {
       var mc = Long.compare(this.moc, o.moc);
       if (mc != 0 && mocRelevant) return mc;
 
-      var dc = Long.compare(this.duration.getSeconds(), o.duration.getSeconds());
-      if (dc != 0) return dc;
+      //var dc = Long.compare(this.duration.getSeconds(), o.duration.getSeconds());
+      //if (dc != 0) return dc;
 
       return Long.compare(this.unix_arr_time, o.unix_arr_time);
+    }
+
+    public String getChangeWaitingTime() {
+      var bld = new StringBuilder("Connection with TR: ")
+        .append(tripCount).append(";\tMOC: ").append(moc).append("\n");
+      for (int i = 1; i < tripCount; i++) {
+        var duration = Duration.between(trips.get(i - 1).to.arrDt(), trips.get(i).from.depDT());
+        bld.append(i).append(" change: ").append(String.format("%d:%02d:%02d", duration.toHours(), duration.toMinutesPart(), duration.toSecondsPart()));
+        bld.append(";\t");
+      }
+      return bld.toString();
     }
   }
 
@@ -103,7 +140,7 @@ public class ResultComparator {
       final var tr = c.tripCount;
       final var moc = c.moc;
 
-      final var combined = (1 << (tr * (moc+1)));
+      final var combined = (1 << (tr * (moc + 1)));
       mask = mask | combined;
       return mask;
     }
@@ -214,16 +251,44 @@ public class ResultComparator {
     return r;
   }
 
+  static void printChangeWaitingTimes(ComparisonResult compare) {
+    System.out.println("Query ID " + compare.id);
+    System.out.println("======================================================================================");
+    for (int cIdx = 0; cIdx < compare.raptorConns.size(); cIdx++) {
+      var rpc = compare.raptorConns.get(cIdx);
+      var roc = compare.routingConns.get(cIdx);
+      if (rpc != null && roc == null) {
+        System.out.println(rpc.getChangeWaitingTime());
+        System.out.println();
+      }
+    }
+  }
+
+  static void filterDominated(List<CompareConnection> conns, boolean mocRelevant) {
+    for (int i = 0; i < conns.size(); i++) {
+      var dominator = conns.get(i);
+      for (int j = i+1; j < conns.size(); j++) {
+        var toDominate = conns.get(j);
+        if(dominator.dominates(toDominate, mocRelevant)) {
+          conns.remove(j--);
+        }
+      }
+    }
+  }
+
   public static void main(String[] args) throws IOException, ParseException {
     var mocRelevant = true;
-    var raptorLines = Files.readAllLines(Path.of("./data/results/r-fwd-raptor_cpu-moc.txt"));
-    var routingLines = Files.readAllLines(Path.of("./data/results/r-fwd-routing-moc.txt"));
-    //var routingLines = Files.readAllLines(Path.of("./data/results/r-fwd-raptor_cpu-mod-moc_bi.txt"));
+    var raptorLines = Files.readAllLines(Path.of("./verification/sbb/r-routing-moc_bi.txt"));
+    //var routingLines = Files.readAllLines(Path.of("./data/results/r-fwd-routing-moc.txt"));
+    var routingLines = Files.readAllLines(Path.of("./verification/sbb/r-routing-moc.txt"));
 
     if (raptorLines.size() != routingLines.size()) throw new IllegalStateException("Line Counts don't match!");
 
     var raptorConns = transform(raptorLines, mocRelevant);
     var routingConns = transform(routingLines, mocRelevant);
+    //for(var e : routingConns.entrySet()) {
+    //  filterDominated(e.getValue(), mocRelevant);
+    //}
 
     var comparison = compare(raptorLines.size(), raptorConns, routingConns, mocRelevant);
 
@@ -247,26 +312,27 @@ public class ResultComparator {
       if (res.isFullMatch())
         ++full_match_count;
 
-      if(res.isFullMatchOnTripsAndMoc())
+      if (res.isFullMatchOnTripsAndMoc())
         ++matchingTrMoc;
 
       if (res.rocConCnt == res.rpcConCnt)
         ++matchingConCount;
 
-      if(res.rpcConCnt > res.rocConCnt)
+      if (res.rpcConCnt > res.rocConCnt)
         moreRpcConns.add(res);
 
-      if(res.rocConCnt > res.rpcConCnt)
+      if (res.rocConCnt > res.rpcConCnt)
         moreRocConns.add(res);
     }
 
     System.out.println("Statistics:");
-    System.out.println(String.format("%35s", "Full Matches: ") + "\t" + String.format("%4d", full_match_count) + "/" + totalCount + ";\t" + String.format("%.2f", (full_match_count+0.0)/totalCount));
-    System.out.println(String.format("%35s", "ConnCnt Matches (TR,MOC): ") + "\t" + String.format("%4d", matchingTrMoc) + "/" + totalCount + ";\t" + String.format("%.2f", (matchingTrMoc+0.0)/totalCount));
-    System.out.println(String.format("%35s", "Total Conn. Matches: ") + "\t" + String.format("%4d", totalMatchingCnt) + "/" + totalConnCnt + ";\t" + String.format("%.2f", (totalMatchingCnt+0.0)/totalConnCnt));
+    System.out.println(String.format("%35s", "Full Matches: ") + "\t" + String.format("%4d", full_match_count) + "/" + totalCount + ";\t" + String.format("%.2f", (full_match_count + 0.0) / totalCount));
+    System.out.println(String.format("%35s", "ConnCnt Matches (TR,MOC): ") + "\t" + String.format("%4d", matchingTrMoc) + "/" + totalCount + ";\t" + String.format("%.2f", (matchingTrMoc + 0.0) / totalCount));
+    System.out.println(String.format("%35s", "Total Conn. Matches: ") + "\t" + String.format("%4d", totalMatchingCnt) + "/" + totalConnCnt + ";\t" + String.format("%.2f", (totalMatchingCnt + 0.0) / totalConnCnt));
     System.out.println();
-    System.out.println(String.format("%35s", "Connection Count Matches: ") + "\t" + String.format("%4d", matchingConCount) + "/" + totalCount + ";\t" + String.format("%.2f", (matchingConCount+0.0)/totalCount));
-    System.out.println();;
+    System.out.println(String.format("%35s", "Connection Count Matches: ") + "\t" + String.format("%4d", matchingConCount) + "/" + totalCount + ";\t" + String.format("%.2f", (matchingConCount + 0.0) / totalCount));
+    System.out.println();
+    ;
     System.out.println(String.format("%35s", "More Raptor Conns: ") + "\t" + String.format("%4d", moreRpcConns.size()) + "/" + totalCount);
     System.out.println(String.format("%35s", "More Routing Conns: ") + "\t" + String.format("%4d", moreRocConns.size()) + "/" + totalCount);
     System.out.println();
@@ -275,8 +341,6 @@ public class ResultComparator {
     var blcRpc = new StringBuilder("More Raptor Connections for Queries: ");
     moreRpcConns.forEach((e) -> blcRpc.append(e.id).append(", "));
     System.out.println(blcRpc);
-    //System.out.println();
-    //moreRpcConns.forEach((e) -> System.out.println(e.toString(mocRelevant) + "\n\n"));
     System.out.println();
     System.out.println();
 

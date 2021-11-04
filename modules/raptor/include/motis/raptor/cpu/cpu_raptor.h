@@ -116,6 +116,8 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
   for (station_id r_stop_offset = 0; r_stop_offset < route.stop_count_;
        ++r_stop_offset) {
 
+    //during each iteration check if all trait dimensions have departure
+    //stations and if not check is this stop is feasible
     if (!valid(earliest_trip_id)) {
       earliest_trip_id =
           get_earliest_trip<Config>(tt, route, prev_ea, r_stop_offset);
@@ -146,6 +148,9 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
 
       auto const& stop_time = tt.stop_times_[current_stop_time_idx];
 
+      //iterates on trait size; needs to have info whether the departure
+      //station was just selected for avy given trait dimension and act
+      // thereafter
       auto [min_arrival_update, traits_satisfied] =
           Config::check_and_update_arrivals_old(
               previous_round, current_round, tt, departure_id, stop_id,
@@ -176,6 +181,8 @@ inline void update_route(raptor_timetable const& tt, route_id const r_id,
       auto old_earliest_trip_id = earliest_trip_id;
       earliest_trip_id =
           get_earliest_trip<Config>(tt, route, prev_ea, r_stop_offset);
+      //would require iterating over trait size and check whether this stop can
+      //also serve as new departure stop
       if (old_earliest_trip_id != earliest_trip_id) {
         departure_id =
             tt.route_stops_[route.index_to_route_stops_ + r_stop_offset];
@@ -245,7 +252,7 @@ inline void update_route2(raptor_timetable const& tt, route_id const r_id,
 
         // iff there is an invalid departure id
         //     => we can skip if there is no arrival known at this stop or if
-        //     the trip can't be catched at this stop
+        //     the trip can't be caught at this stop
         if (!valid(departure_station) &&
             (!valid(previous_round[arrival_idx]) ||
              previous_round[arrival_idx] > current_stop_time.departure_)) {
@@ -253,6 +260,7 @@ inline void update_route2(raptor_timetable const& tt, route_id const r_id,
         }
 
         if(valid(departure_station)) {
+          //TODO: recheck whether this is obsolete
           Config::update_traits_aggregate(trait_data, tt, r_id, trip_id,
                                           r_stop_offset, current_sti);
 
@@ -366,6 +374,7 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
 
 #ifdef _DEBUG
   print_query(query);
+  print_routes({1824}, tt);
   //print_stations(raptor_sched);
   //print_route_trip_debug_strings(raptor_sched);
 #endif
