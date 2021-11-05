@@ -7,8 +7,6 @@
 "TC4-1","1","TC 4-1","Test Case 4 R1",,1
 "TC4-2","1","TC 4-2","Test Case 4 R2",,1
 "TC4-3","1","TC 4-3","Test Case 4 R3",,1
-"TC5-1","1","TC 5-1","Test Case 5 R1",,1
-"TC5-2","1","TC 5-2","Test Case 5 R2",,1
-"TC5-3","1","TC 5-3","Test Case 5 R3",,1
+"TC5","1","TC 5","Test Case 5",,1
 "TC6","1","TC 6","Test Case 6",,1
 "TC7","1","TC 7","Test Case 7",,1

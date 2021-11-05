@@ -15,6 +15,8 @@ protected:
   void SetUp() override;
   virtual void manipulate_schedule() = 0;
 
+  uint32_t get_raptor_r_id(std::string const& gtfs_trip_id);
+
   schedule_ptr sched_;
   loader::loader_options opts_;
   std::unique_ptr<raptor_schedule> rp_sched_;
