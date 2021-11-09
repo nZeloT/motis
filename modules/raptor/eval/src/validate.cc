@@ -1,11 +1,14 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <set>
 #include <sstream>
 #include <tuple>
 
 #include "motis/core/schedule/edges.h"
 #include "motis/core/access/trip_access.h"
+#include "motis/core/access/trip_iterator.h"
+#include "motis/core/access/trip_section.h"
 #include "motis/core/journey/journey.h"
 #include "motis/core/journey/message_to_journeys.h"
 #include "motis/module/message.h"
@@ -35,6 +38,36 @@ struct validate_options : public conf::configuration {
   std::string in_path_;
   bool print_details_;
 };
+
+bool contains_loop_in_range(trip const* trip, uint32_t range_begin_s_off,
+                            uint32_t range_end_s_off) {
+  std::set<node_id_t> known_stations{};
+  auto const edges = trip->edges_;
+  if (range_end_s_off > edges->size()) {
+    throw std::runtime_error{"Range end offset is not within trip size!"};
+  }
+
+  auto has_loop = false;
+  for (uint32_t idx = range_begin_s_off;
+       idx < edges->size() && idx < range_end_s_off; ++idx) {
+
+    auto const edge = edges->at(idx);
+
+    auto const from = edge->from_->get_station()->id_;
+    auto const [_, inserted] = known_stations.insert(from);
+
+    if (!inserted) {
+      has_loop = true;
+      break;
+    }
+  }
+
+  auto const last_edge = edges->at(range_end_s_off - 1);
+  auto const to = last_edge->to_->get_station()->id_;
+  auto const [_, inserted] = known_stations.insert(to);
+
+  return has_loop || !inserted;
+}
 
 std::tuple<bool, std::string> validate(schedule const& sched, journey const& j,
                                        bool print_details) {
@@ -78,7 +111,13 @@ std::tuple<bool, std::string> validate(schedule const& sched, journey const& j,
       return true;
     };
 
-    for (const auto& edge : *edges) {
+    uint32_t range_begin = std::numeric_limits<uint32_t>::max();
+    uint32_t range_end = std::numeric_limits<uint32_t>::max();
+    uint32_t trip_range_begin = range_begin;
+    uint32_t trip_range_end = range_end;
+    for (int idx = 0; idx < edges->size(); ++idx) {
+      auto const& edge = edges->at(idx);
+
       auto const& dep_station =
           sched.stations_[edge->from_->get_station()->id_];
 
@@ -88,19 +127,11 @@ std::tuple<bool, std::string> validate(schedule const& sched, journey const& j,
           // newly found the departure station now check the timing
           trip_valid = check_dep_time(edge);
         }
+        range_begin = idx;
         if (!found_dep) continue;
       } else if (dep_station->eva_nr_ == j_from_stop.eva_no_) {
         // this trip contains a loop and therefore has the departure station
         // twice
-        if (found_arr) {
-          // we already found an arrival stop, but it is possible we will find
-          // one as well
-          trip_msg_valid = trip_valid;
-          trip_msg_used = true;
-          trip_msg_prev_station_arrival = prev_station_arrival;
-          trip_msg = trip_ss.str();
-        }
-
         found_dep = true;
         trip_ss.str(std::string{});
         auto dt_check =
@@ -127,6 +158,18 @@ std::tuple<bool, std::string> validate(schedule const& sched, journey const& j,
           // write new arrival time for the arrival_station;
           // this will be checked on the next trip
           prev_station_arrival = edge->m_.route_edge_.conns_[lc_idx].a_time_;
+          range_end = idx+1;
+
+          if(trip_valid) {
+            // we already found an arrival stop, but it is possible we will find
+            // another one
+            trip_msg_valid = trip_valid;
+            trip_msg_used = true;
+            trip_msg_prev_station_arrival = prev_station_arrival;
+            trip_msg = trip_ss.str();
+            trip_range_begin = range_begin;
+            trip_range_end = range_end;
+          }
         }
       }
     }
@@ -142,15 +185,31 @@ std::tuple<bool, std::string> validate(schedule const& sched, journey const& j,
         if (!trip_msg_valid) str << trip_msg;
         trip_valid = trip_msg_valid;
         prev_station_arrival = trip_msg_prev_station_arrival;
-
-        trip_msg = "";
-        trip_msg_used = false;
-        trip_msg_valid = true;
-        trip_msg_prev_station_arrival = INVALID_TIME;
+        range_begin = trip_range_begin;
+        range_end = trip_range_end;
       } else {
         str << trip_ss.str();
       }
     }
+
+    if (!trip_valid) {
+      if(contains_loop_in_range(s_trip, range_begin, range_end)) {
+        str << "\nTrip " << j_trip.debug_
+            << ";\tContains a loop in range of used departure and arrival "
+               "stations!";
+      }else{
+        str << "\nNo Loop found!";
+      }
+    }
+
+    trip_msg = "";
+    trip_msg_used = false;
+    trip_msg_valid = true;
+    trip_msg_prev_station_arrival = INVALID_TIME;
+    range_begin = std::numeric_limits<uint32_t>::max();
+    range_end = range_begin;
+    trip_range_end = range_begin;
+    trip_range_begin = range_begin;
 
     is_valid = is_valid && trip_valid;
   }

@@ -36,6 +36,16 @@ public:
     manip_sched_for_tc7();
   }
 
+  void check_mock_on_rp_sched() override {
+    check_mock_for_tc1();
+    check_mock_for_tc2();
+    check_mock_for_tc3();
+    check_mock_for_tc4();
+    check_mock_for_tc5();
+    check_mock_for_tc6();
+    check_mock_for_tc7();
+  }
+
   void manip_sched_for_tc1() {
     // Manipulation for test "force_trip_change_but_keep_route"
     auto trip_1 = get_trip(*sched_, "TC1-TR1", 1630281600L);
@@ -51,6 +61,27 @@ public:
     t2_edges->at(0)->m_.route_edge_.conns_[t2_lcon_idx].occupancy_ = 1;  // A->B
     t2_edges->at(1)->m_.route_edge_.conns_[t2_lcon_idx].occupancy_ = 0;  // B->C
     t2_edges->at(2)->m_.route_edge_.conns_[t2_lcon_idx].occupancy_ = 0;  // C->D
+  }
+
+  void check_mock_for_tc1() {
+    auto& sched = *this->rp_sched_;
+    auto& tt = this->rp_sched_->timetable_;
+
+    // manipulate the occupancy in the timetable so that it fits the test
+    auto const r_id = get_raptor_r_id("TC1-TR1");
+    auto const route = tt.routes_[r_id];
+    auto const trip_0_first_sti = route.index_to_stop_times_;
+    auto const trip_1_first_sti = trip_0_first_sti + route.stop_count_;
+
+    // make sure the schedule manipulation went as expected
+    EXPECT_EQ(4, route.stop_count_);  // little safety net
+    EXPECT_EQ(1, tt.stop_occupancies_[trip_0_first_sti + 3].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[trip_0_first_sti + 2].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[trip_0_first_sti + 1].inbound_occupancy_);
+
+    EXPECT_EQ(0, tt.stop_occupancies_[trip_1_first_sti + 3].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[trip_1_first_sti + 2].inbound_occupancy_);
+    EXPECT_EQ(1, tt.stop_occupancies_[trip_1_first_sti + 1].inbound_occupancy_);
   }
 
   void manip_sched_for_tc2() {
@@ -77,6 +108,37 @@ public:
     t3edges->at(2)->m_.route_edge_.conns_[t3lcidx].occupancy_ = 0;  // C->D
   }
 
+  void check_mock_for_tc2() {
+    auto& sched = *this->rp_sched_;
+    auto& tt = sched.timetable_;
+
+    auto const sched_begin = sched_->schedule_begin_;
+
+    auto const r_id = get_raptor_r_id("TC2-TR1");
+    auto const route = tt.routes_[r_id];
+    auto const trip_0_first_sti = route.index_to_stop_times_;
+    auto const trip_1_first_sti = trip_0_first_sti + route.stop_count_;
+    auto const trip_2_first_sti = trip_1_first_sti + route.stop_count_;
+    auto const d2_s_id = tt.route_stops_[route.index_to_route_stops_+3];
+    auto const d2_tt = sched.transfer_times_[d2_s_id];
+
+    // ensure the schedule is manipulated as expected
+    EXPECT_EQ(4, route.stop_count_);
+    EXPECT_EQ(3, route.trip_count_);
+    EXPECT_EQ(0, tt.stop_occupancies_[trip_0_first_sti + 1].inbound_occupancy_);
+    EXPECT_EQ(1, tt.stop_occupancies_[trip_0_first_sti + 2].inbound_occupancy_);
+    EXPECT_EQ(2, tt.stop_occupancies_[trip_0_first_sti + 3].inbound_occupancy_);
+
+    EXPECT_EQ(0, tt.stop_occupancies_[trip_1_first_sti + 1].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[trip_1_first_sti + 2].inbound_occupancy_);
+    EXPECT_EQ(1, tt.stop_occupancies_[trip_1_first_sti + 3].inbound_occupancy_);
+
+    EXPECT_EQ(0, tt.stop_occupancies_[trip_2_first_sti + 1].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[trip_2_first_sti + 2].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[trip_2_first_sti + 3].inbound_occupancy_);
+    // end checking schedule
+  }
+
   void manip_sched_for_tc3() {
     // Manipulation for test
     // "journey_w_max_occ_two_is_dominated_by_j_w_max_occ_one"
@@ -95,6 +157,38 @@ public:
     auto t3lcidx = trip3->lcon_idx_;
     t3edges->at(0)->m_.route_edge_.conns_[t3lcidx].occupancy_ = 0;  // B->C
     t3edges->at(1)->m_.route_edge_.conns_[t3lcidx].occupancy_ = 0;  // C->D
+  }
+
+  void check_mock_for_tc3() {
+    auto& sched = *this->rp_sched_;
+    auto& tt = sched.timetable_;
+
+    auto const sched_begin = sched_->schedule_begin_;
+
+    auto const r_id1 = get_raptor_r_id("TC3-1-TR1");
+    auto const routeAB = tt.routes_[r_id1];
+    auto const rAB_t0_first_sti = routeAB.index_to_stop_times_;
+    auto const r_id2 = get_raptor_r_id("TC3-2-TR1");
+    auto const routeAC = tt.routes_[r_id2];
+    auto const rAC_t0_first_sti = routeAC.index_to_stop_times_;
+    auto const r_id3 = get_raptor_r_id("TC3-3-TR1");
+    auto const routeBD = tt.routes_[r_id3];
+    auto const rBD_t0_first_sti = routeBD.index_to_stop_times_;
+    auto const d3_s_id = tt.route_stops_[routeBD.index_to_route_stops_+2];
+    auto const d3_tt = sched.transfer_times_[d3_s_id];
+
+    EXPECT_EQ(2, routeAB.stop_count_);
+    EXPECT_EQ(1, routeAB.trip_count_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rAB_t0_first_sti + 1].inbound_occupancy_);
+
+    EXPECT_EQ(2, routeAC.stop_count_);
+    EXPECT_EQ(1, routeAC.trip_count_);
+    EXPECT_EQ(2, tt.stop_occupancies_[rAC_t0_first_sti + 1].inbound_occupancy_);
+
+    EXPECT_EQ(3, routeBD.stop_count_);
+    EXPECT_EQ(1, routeBD.trip_count_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rBD_t0_first_sti + 1].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rBD_t0_first_sti + 2].inbound_occupancy_);
   }
 
   void manip_sched_for_tc4() {
@@ -117,6 +211,38 @@ public:
     t3edges->at(1)->m_.route_edge_.conns_[t3lcidx].occupancy_ = 0;  // C->D
   }
 
+  void check_mock_for_tc4() {
+    auto& sched = *this->rp_sched_;
+    auto& tt = sched.timetable_;
+
+    auto const sched_begin = sched_->schedule_begin_;
+
+    auto const r_id1 = get_raptor_r_id("TC4-1-TR1");
+    auto const routeAB = tt.routes_[r_id1];
+    auto const rAB_t0_first_sti = routeAB.index_to_stop_times_;
+    auto const r_id2 = get_raptor_r_id("TC4-2-TR1");
+    auto const routeAC = tt.routes_[r_id2];
+    auto const rAC_t0_first_sti = routeAC.index_to_stop_times_;
+    auto const r_id3 = get_raptor_r_id("TC4-3-TR1");
+    auto const routeBD = tt.routes_[r_id3];
+    auto const rBD_t0_first_sti = routeBD.index_to_stop_times_;
+    auto const d4_s_id = tt.route_stops_[routeBD.index_to_route_stops_+2];
+    auto d4_tt = sched.transfer_times_[d4_s_id];
+
+    EXPECT_EQ(2, routeAB.stop_count_);
+    EXPECT_EQ(1, routeAB.trip_count_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rAB_t0_first_sti+1].inbound_occupancy_);
+
+    EXPECT_EQ(2, routeAC.stop_count_);
+    EXPECT_EQ(1, routeAC.trip_count_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rAC_t0_first_sti+1].inbound_occupancy_);
+
+    EXPECT_EQ(3, routeBD.stop_count_);
+    EXPECT_EQ(1, routeBD.trip_count_);
+    EXPECT_EQ(1, tt.stop_occupancies_[rBD_t0_first_sti+1].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rBD_t0_first_sti+2].inbound_occupancy_);
+  }
+
   void manip_sched_for_tc5() {
     // Manipulation for test
     // "tc5_force_exit_and_exter_trip_with_loop"
@@ -130,6 +256,27 @@ public:
     t1edges->at(3)->m_.route_edge_.conns_[t1lcidx].occupancy_ = 0;  // C->D
   }
 
+  void check_mock_for_tc5() {
+    auto& sched = *this->rp_sched_;
+    auto& tt = sched.timetable_;
+
+    auto const sched_begin = sched_->schedule_begin_;
+
+    auto const r_id = get_raptor_r_id("TC5-TR1");
+    auto const routeTC5 = tt.routes_[r_id];
+    auto const rTC5_t0_first_sti = routeTC5.index_to_stop_times_;
+    auto const d5_s_id = tt.route_stops_[routeTC5.index_to_route_stops_+4];
+    auto d5_tt = sched.transfer_times_[d5_s_id];
+
+    EXPECT_EQ(6, routeTC5.stop_count_);
+    EXPECT_EQ(1, routeTC5.trip_count_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rTC5_t0_first_sti+1].inbound_occupancy_);
+    EXPECT_EQ(1, tt.stop_occupancies_[rTC5_t0_first_sti+2].inbound_occupancy_);
+    EXPECT_EQ(1, tt.stop_occupancies_[rTC5_t0_first_sti+3].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rTC5_t0_first_sti+4].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rTC5_t0_first_sti+5].inbound_occupancy_);
+  }
+
   void manip_sched_for_tc6() {
     // Manipulation for test
     // "tc6_force_later_dep_station_on_same_trip"
@@ -140,6 +287,26 @@ public:
     t1edges->at(1)->m_.route_edge_.conns_[t1lcidx].occupancy_ = 1;  // B->C
     t1edges->at(2)->m_.route_edge_.conns_[t1lcidx].occupancy_ = 1;  // C->A
     t1edges->at(3)->m_.route_edge_.conns_[t1lcidx].occupancy_ = 0;  // A->D
+  }
+
+  void check_mock_for_tc6() {
+    auto& sched = *this->rp_sched_;
+    auto& tt = sched.timetable_;
+
+    auto const sched_begin = sched_->schedule_begin_;
+
+    auto const r_id = get_raptor_r_id("TC6-TR1");
+    auto const routeTC6 = tt.routes_[r_id];
+    auto const rTC6_t0_first_sti = routeTC6.index_to_stop_times_;
+    auto const d6_s_id = tt.route_stops_[routeTC6.index_to_route_stops_+4];
+    auto d6_tt = sched.transfer_times_[d6_s_id];
+
+    EXPECT_EQ(5, routeTC6.stop_count_);
+    EXPECT_EQ(1, routeTC6.trip_count_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rTC6_t0_first_sti+1].inbound_occupancy_);
+    EXPECT_EQ(1, tt.stop_occupancies_[rTC6_t0_first_sti+2].inbound_occupancy_);
+    EXPECT_EQ(1, tt.stop_occupancies_[rTC6_t0_first_sti+3].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rTC6_t0_first_sti+4].inbound_occupancy_);
   }
 
   void manip_sched_for_tc7() {
@@ -157,9 +324,33 @@ public:
     t1edges->at(6)->m_.route_edge_.conns_[t1lcidx].occupancy_ = 0;  // B->D
   }
 
+  void check_mock_for_tc7() {
+    auto& sched = *this->rp_sched_;
+    auto& tt = sched.timetable_;
+
+    auto const sched_begin = sched_->schedule_begin_;
+
+    auto const r_id = get_raptor_r_id("TC7-TR1");
+    auto const routeTC7 = tt.routes_[r_id];
+    auto const rTC7_t0_first_sti = routeTC7.index_to_stop_times_;
+    auto const d7_s_id = tt.route_stops_[routeTC7.index_to_route_stops_+4];
+    auto d7_tt = sched.transfer_times_[d7_s_id];
+
+    EXPECT_EQ(8, routeTC7.stop_count_);
+    EXPECT_EQ(1, routeTC7.trip_count_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rTC7_t0_first_sti+1].inbound_occupancy_);
+    EXPECT_EQ(1, tt.stop_occupancies_[rTC7_t0_first_sti+2].inbound_occupancy_);
+    EXPECT_EQ(1, tt.stop_occupancies_[rTC7_t0_first_sti+3].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rTC7_t0_first_sti+4].inbound_occupancy_);
+    EXPECT_EQ(2, tt.stop_occupancies_[rTC7_t0_first_sti+5].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rTC7_t0_first_sti+6].inbound_occupancy_);
+    EXPECT_EQ(0, tt.stop_occupancies_[rTC7_t0_first_sti+7].inbound_occupancy_);
+  }
+
 };
 
 // Test uses the following schedule (occupancy on trip arrows)
+// Time 0' refers to 12:00 in the schedule
 // Stops:   A  --->  B  --->  C  --->  D
 // Trip 0:  0' -0-> 10' -0-> 20' -1-> 30'
 // Trip 1: 10' -1-> 20' -0-> 30' -0-> 40'
@@ -178,65 +369,47 @@ TEST_F(mc_cpu_raptor_tests, tc1_force_trip_change_but_keep_route) {
   auto const trip_0_first_sti = route.index_to_stop_times_;
   auto const trip_1_first_sti = trip_0_first_sti + route.stop_count_;
 
-  // make sure the schedule manipulation went as expected
-  EXPECT_EQ(4, route.stop_count_);  // little safety net
-  EXPECT_EQ(1, tt.stop_occupancies_[trip_0_first_sti + 3].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[trip_0_first_sti + 2].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[trip_0_first_sti + 1].inbound_occupancy_);
-
-  EXPECT_EQ(0, tt.stop_occupancies_[trip_1_first_sti + 3].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[trip_1_first_sti + 2].inbound_occupancy_);
-  EXPECT_EQ(1, tt.stop_occupancies_[trip_1_first_sti + 1].inbound_occupancy_);
-  // end manipulate timetable
-
   auto const start_sti = tt.stop_times_[trip_0_first_sti];
 
-  base_query bq{};
-
-  bq.source_time_begin_ = start_sti.departure_;
-  bq.source_time_end_ = bq.source_time_begin_;
-  bq.source_ = sched.eva_to_raptor_id_.at("A1");
-  bq.target_ = sched.eva_to_raptor_id_.at("D1");
-
-  raptor_query q{bq, tt, OccupancyOnly::trait_size()};
-
-  raptor_statistics st;
-
-  invoke_cpu_raptor<OccupancyOnly>(q, st, sched);
-  reconstructor<OccupancyOnly> rc{bq, *sched_, sched};
-  rc.add(bq.source_time_begin_, *q.result_);
-  auto const journeys = rc.get_journeys();
+  auto const j_rapt = execute_raptor(start_sti.departure_, "A1", "D1");
+  auto const j_rout = execute_routing(start_sti.departure_, "A1", "D1");
 
   auto const last_s_id = tt.route_stops_[route.index_to_route_stops_ + 3];
   auto const last_stop_tt = sched.transfer_times_[last_s_id];
 
-  // Start checking expectation
-  EXPECT_EQ(2, journeys.size());
+  auto check_exp = [&](std::vector<journey> const& journeys) {
+    // Start checking expectation
+    EXPECT_EQ(2, journeys.size());
 
-  // Check first journey with Max Occupancy = 0
-  auto const j0 = journeys[0];
-  EXPECT_EQ(1, j0.occupancy_max_);
-  EXPECT_EQ(1, j0.trips_.size());
-  EXPECT_EQ(4, j0.stops_.size());
-  auto const stop_time_d1_0 = tt.stop_times_[trip_0_first_sti + 3];
-  auto const j0_arrival = motis_to_unixtime(
-      sched_->schedule_begin_, stop_time_d1_0.arrival_ - last_stop_tt);
-  EXPECT_EQ(j0_arrival, j0.stops_[3].arrival_.timestamp_);
+    // Check first journey with Max Occupancy = 0
+    auto const j0 = journeys[0];
+    EXPECT_EQ(1, j0.occupancy_max_);
+    EXPECT_EQ(1, j0.trips_.size());
+    EXPECT_EQ(4, j0.stops_.size());
+    auto const stop_time_d1_0 = tt.stop_times_[trip_0_first_sti + 3];
+    auto const j0_arrival = motis_to_unixtime(
+        sched_->schedule_begin_, stop_time_d1_0.arrival_ - last_stop_tt);
+    EXPECT_EQ(j0_arrival, j0.stops_[3].arrival_.timestamp_);
 
-  // Check second journey
-  auto const j1 = journeys[1];
-  EXPECT_EQ(0, j1.occupancy_max_);
-  EXPECT_EQ(2, j1.trips_.size());
-  EXPECT_EQ(4, j1.stops_.size());
+    // Check second journey
+    auto const j1 = journeys[1];
+    EXPECT_EQ(0, j1.occupancy_max_);
+    EXPECT_EQ(2, j1.trips_.size());
+    EXPECT_EQ(4, j1.stops_.size());
 
-  // to get arrival time we need to substract the last station transfer time
-  auto const stop_time_d1_1 = tt.stop_times_[trip_1_first_sti + 3];
-  auto const j1_arrival = motis_to_unixtime(
-      sched_->schedule_begin_, stop_time_d1_1.arrival_ - last_stop_tt);
-  EXPECT_EQ(j1_arrival, j1.stops_[3].arrival_.timestamp_);
+    // to get arrival time we need to substract the last station transfer time
+    auto const stop_time_d1_1 = tt.stop_times_[trip_1_first_sti + 3];
+    auto const j1_arrival = motis_to_unixtime(
+        sched_->schedule_begin_, stop_time_d1_1.arrival_ - last_stop_tt);
+    EXPECT_EQ(j1_arrival, j1.stops_[3].arrival_.timestamp_);
+  };
+
+  check_exp(j_rapt);
+  check_exp(j_rout);
 }
 
 // Test uses the following schedule (occupancy on trip arrows)
+// Time 0' refers to 12:00 in the schedule
 // Stops:   A  --->  B  --->  C  --->  D
 // Trip 0:  0' -0-> 10' -1-> 20' -2-> 30'
 // Trip 1: 10' -1-> 20' -0-> 30' -1-> 40'
@@ -258,64 +431,45 @@ TEST_F(mc_cpu_raptor_tests, tc2_find_result_for_all_occ_levels) {
   auto const d2_s_id = tt.route_stops_[route.index_to_route_stops_+3];
   auto const d2_tt = sched.transfer_times_[d2_s_id];
 
-  // ensure the schedule is manipulated as expected
-  EXPECT_EQ(4, route.stop_count_);
-  EXPECT_EQ(3, route.trip_count_);
-  EXPECT_EQ(0, tt.stop_occupancies_[trip_0_first_sti + 1].inbound_occupancy_);
-  EXPECT_EQ(1, tt.stop_occupancies_[trip_0_first_sti + 2].inbound_occupancy_);
-  EXPECT_EQ(2, tt.stop_occupancies_[trip_0_first_sti + 3].inbound_occupancy_);
-
-  EXPECT_EQ(0, tt.stop_occupancies_[trip_1_first_sti + 1].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[trip_1_first_sti + 2].inbound_occupancy_);
-  EXPECT_EQ(1, tt.stop_occupancies_[trip_1_first_sti + 3].inbound_occupancy_);
-
-  EXPECT_EQ(0, tt.stop_occupancies_[trip_2_first_sti + 1].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[trip_2_first_sti + 2].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[trip_2_first_sti + 3].inbound_occupancy_);
-  // end checking schedule
-
   auto const start_sti = tt.stop_times_[trip_0_first_sti];
-  base_query bq{};
-  bq.source_time_begin_ = start_sti.departure_;
-  bq.source_time_end_ = bq.source_time_begin_;
-  bq.source_ = sched.eva_to_raptor_id_.at("A2");
-  bq.target_ = sched.eva_to_raptor_id_.at("D2");
-  raptor_query q{bq, tt, OccupancyOnly::trait_size()};
 
-  raptor_statistics st;
-  invoke_cpu_raptor<OccupancyOnly>(q, st, sched);
-  reconstructor<OccupancyOnly> rc{bq, *sched_, sched};
-  rc.add(bq.source_time_begin_, *q.result_);
-  auto const journeys = rc.get_journeys();
+  auto const j_rapt = execute_raptor(start_sti.departure_, "A2", "D2");
+  auto const j_rout = execute_routing(start_sti.departure_, "A2", "D2");
 
-  EXPECT_EQ(3, journeys.size());
+  auto check_exp = [&](std::vector<journey> const& journeys) {
+    EXPECT_EQ(3, journeys.size());
 
-  auto const j0 = journeys[0];
-  EXPECT_EQ(0, j0.occupancy_max_);
-  EXPECT_EQ(1, j0.trips_.size());
-  EXPECT_EQ(4, j0.stops_.size());
-  auto const arr_d2_2 = tt.stop_times_[trip_2_first_sti + 3].arrival_;
-  auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d2_2 - d2_tt);
-  EXPECT_EQ(j0_arrival, j0.stops_[3].arrival_.timestamp_);
+    auto const j0 = journeys[0];
+    EXPECT_EQ(0, j0.occupancy_max_);
+    EXPECT_EQ(1, j0.trips_.size());
+    EXPECT_EQ(4, j0.stops_.size());
+    auto const arr_d2_2 = tt.stop_times_[trip_2_first_sti + 3].arrival_;
+    auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d2_2 - d2_tt);
+    EXPECT_EQ(j0_arrival, j0.stops_[3].arrival_.timestamp_);
 
-  auto const j1 = journeys[1];
-  EXPECT_EQ(1, j1.occupancy_max_);
-  EXPECT_EQ(1, j1.trips_.size());
-  EXPECT_EQ(4, j1.stops_.size());
-  auto const arr_d2_1 = tt.stop_times_[trip_1_first_sti + 3].arrival_;
-  auto const j1_arrival = motis_to_unixtime(sched_begin, arr_d2_1 - d2_tt);
-  EXPECT_EQ(j1_arrival, j1.stops_[3].arrival_.timestamp_);
+    auto const j1 = journeys[1];
+    EXPECT_EQ(1, j1.occupancy_max_);
+    EXPECT_EQ(1, j1.trips_.size());
+    EXPECT_EQ(4, j1.stops_.size());
+    auto const arr_d2_1 = tt.stop_times_[trip_1_first_sti + 3].arrival_;
+    auto const j1_arrival = motis_to_unixtime(sched_begin, arr_d2_1 - d2_tt);
+    EXPECT_EQ(j1_arrival, j1.stops_[3].arrival_.timestamp_);
 
-  auto const j2 = journeys[2];
-  EXPECT_EQ(2, j2.occupancy_max_);
-  EXPECT_EQ(1, j2.trips_.size());
-  EXPECT_EQ(4, j2.stops_.size());
-  auto const arr_d2_0 = tt.stop_times_[trip_0_first_sti + 3].arrival_;
-  auto const j2_arrival = motis_to_unixtime(sched_begin, arr_d2_0 - d2_tt);
-  EXPECT_EQ(j2_arrival, j2.stops_[3].arrival_.timestamp_);
+    auto const j2 = journeys[2];
+    EXPECT_EQ(2, j2.occupancy_max_);
+    EXPECT_EQ(1, j2.trips_.size());
+    EXPECT_EQ(4, j2.stops_.size());
+    auto const arr_d2_0 = tt.stop_times_[trip_0_first_sti + 3].arrival_;
+    auto const j2_arrival = motis_to_unixtime(sched_begin, arr_d2_0 - d2_tt);
+    EXPECT_EQ(j2_arrival, j2.stops_[3].arrival_.timestamp_);
+  };
+
+  check_exp(j_rapt);
+  check_exp(j_rout);
 }
 
 // Test uses the following schedule (occupancy on trip arrows)
+// Time 0' refers to 12:00 in the schedule
 // Route AB
 // Stops:   A  --->  B
 // Trip 0:  0' -0-> 10'
@@ -350,45 +504,28 @@ TEST_F(mc_cpu_raptor_tests,
   auto const d3_s_id = tt.route_stops_[routeBD.index_to_route_stops_+2];
   auto const d3_tt = sched.transfer_times_[d3_s_id];
 
-  EXPECT_EQ(2, routeAB.stop_count_);
-  EXPECT_EQ(1, routeAB.trip_count_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rAB_t0_first_sti + 1].inbound_occupancy_);
-
-  EXPECT_EQ(2, routeAC.stop_count_);
-  EXPECT_EQ(1, routeAC.trip_count_);
-  EXPECT_EQ(2, tt.stop_occupancies_[rAC_t0_first_sti + 1].inbound_occupancy_);
-
-  EXPECT_EQ(3, routeBD.stop_count_);
-  EXPECT_EQ(1, routeBD.trip_count_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rBD_t0_first_sti + 1].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rBD_t0_first_sti + 2].inbound_occupancy_);
-
   auto const start_sti = tt.stop_times_[rAB_t0_first_sti];
-  base_query bq{};
-  bq.source_time_begin_ = start_sti.departure_;
-  bq.source_time_end_ = bq.source_time_begin_;
-  bq.source_ = sched.eva_to_raptor_id_.at("A3");
-  bq.target_ = sched.eva_to_raptor_id_.at("D3");
-  raptor_query q{bq, tt, OccupancyOnly ::trait_size()};
+  auto const j_rapt = execute_raptor(start_sti.departure_, "A3", "D3");
+  auto const j_rout = execute_routing(start_sti.departure_, "A3", "D3");
 
-  raptor_statistics rs;
-  invoke_cpu_raptor<OccupancyOnly>(q, rs, sched);
-  reconstructor<OccupancyOnly> rc{bq, *sched_, sched};
-  rc.add(bq.source_time_begin_, *q.result_);
-  auto const journeys = rc.get_journeys();
+  auto check_exp = [&](std::vector<journey> const& journeys) {
+    EXPECT_EQ(1, journeys.size());
 
-  EXPECT_EQ(1, journeys.size());
+    auto const j0 = journeys[0];
+    EXPECT_EQ(2, j0.trips_.size());
+    EXPECT_EQ(4, j0.stops_.size());
+    EXPECT_EQ(0, j0.occupancy_max_);
+    auto const arr_d3 = tt.stop_times_[rBD_t0_first_sti + 2].arrival_;
+    auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d3 - d3_tt);
+    EXPECT_EQ(j0_arrival, j0.stops_[3].arrival_.timestamp_);
+  };
 
-  auto const j0 = journeys[0];
-  EXPECT_EQ(2, j0.trips_.size());
-  EXPECT_EQ(4, j0.stops_.size());
-  EXPECT_EQ(0, j0.occupancy_max_);
-  auto const arr_d3 = tt.stop_times_[rBD_t0_first_sti + 2].arrival_;
-  auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d3 - d3_tt);
-  EXPECT_EQ(j0_arrival, j0.stops_[3].arrival_.timestamp_);
+  check_exp(j_rapt);
+  check_exp(j_rout);
 }
 
 // Test uses the following schedule (occupancy on trip arrows)
+// Time 0' refers to 12:00 in the schedule
 // Route AB
 // Stops:   A  --->  B
 // Trip 0:  0' -0-> 10'
@@ -424,45 +561,28 @@ TEST_F(mc_cpu_raptor_tests,
   auto const d4_s_id = tt.route_stops_[routeBD.index_to_route_stops_+2];
   auto d4_tt = sched.transfer_times_[d4_s_id];
 
-  EXPECT_EQ(2, routeAB.stop_count_);
-  EXPECT_EQ(1, routeAB.trip_count_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rAB_t0_first_sti+1].inbound_occupancy_);
-
-  EXPECT_EQ(2, routeAC.stop_count_);
-  EXPECT_EQ(1, routeAC.trip_count_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rAC_t0_first_sti+1].inbound_occupancy_);
-
-  EXPECT_EQ(3, routeBD.stop_count_);
-  EXPECT_EQ(1, routeBD.trip_count_);
-  EXPECT_EQ(1, tt.stop_occupancies_[rBD_t0_first_sti+1].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rBD_t0_first_sti+2].inbound_occupancy_);
-
   auto const start_sti = tt.stop_times_[rAB_t0_first_sti];
-  base_query bq{};
-  bq.source_time_begin_ = start_sti.departure_;
-  bq.source_time_end_ = bq.source_time_begin_;
-  bq.source_ = sched.eva_to_raptor_id_.at("A4");
-  bq.target_ = sched.eva_to_raptor_id_.at("D4");
-  raptor_query q{bq, tt, OccupancyOnly ::trait_size()};
+  auto const j_rapt = execute_raptor(start_sti.departure_, "A4", "D4");
+  auto const j_rout = execute_routing(start_sti.departure_, "A4", "D4");
 
-  raptor_statistics rs;
-  invoke_cpu_raptor<OccupancyOnly>(q, rs, sched);
-  reconstructor<OccupancyOnly> rc{bq, *sched_, sched};
-  rc.add(bq.source_time_begin_, *q.result_);
-  auto const journeys = rc.get_journeys();
+  auto check_exp = [&](std::vector<journey> const& journeys) {
+    EXPECT_EQ(1, journeys.size());
 
-  EXPECT_EQ(1, journeys.size());
+    auto const j0 = journeys[0];
+    EXPECT_EQ(0, j0.occupancy_max_);
+    EXPECT_EQ(2, j0.trips_.size());
+    EXPECT_EQ(3, j0.stops_.size());
+    auto const arr_d4 = tt.stop_times_[rBD_t0_first_sti+2].arrival_;
+    auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d4 - d4_tt);
+    EXPECT_EQ(j0_arrival, j0.stops_[2].arrival_.timestamp_);
+  };
 
-  auto const j0 = journeys[0];
-  EXPECT_EQ(0, j0.occupancy_max_);
-  EXPECT_EQ(2, j0.trips_.size());
-  EXPECT_EQ(3, j0.stops_.size());
-  auto const arr_d4 = tt.stop_times_[rBD_t0_first_sti+2].arrival_;
-  auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d4 - d4_tt);
-  EXPECT_EQ(j0_arrival, j0.stops_[2].arrival_.timestamp_);
+  check_exp(j_rapt);
+  check_exp(j_rout);
 }
 
 // Test uses the following schedule (occupancy on trip arrows)
+// Time 0' refers to 12:00 in the schedule
 // Route TC5
 // Stops:   A  --->  B  --->  E  --->  B  --->  C  --->  D
 // Trip 0:  0' -0-> 20' -1-> 40' -1-> 00' -0-> 40' -0-> 00'
@@ -483,47 +603,36 @@ TEST_F(mc_cpu_raptor_tests,
   auto const d5_s_id = tt.route_stops_[routeTC5.index_to_route_stops_+4];
   auto d5_tt = sched.transfer_times_[d5_s_id];
 
-  EXPECT_EQ(6, routeTC5.stop_count_);
-  EXPECT_EQ(1, routeTC5.trip_count_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rTC5_t0_first_sti+1].inbound_occupancy_);
-  EXPECT_EQ(1, tt.stop_occupancies_[rTC5_t0_first_sti+2].inbound_occupancy_);
-  EXPECT_EQ(1, tt.stop_occupancies_[rTC5_t0_first_sti+3].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rTC5_t0_first_sti+4].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rTC5_t0_first_sti+5].inbound_occupancy_);
-
   auto const start_sti = tt.stop_times_[rTC5_t0_first_sti];
-  base_query bq{};
-  bq.source_time_begin_ = start_sti.departure_;
-  bq.source_time_end_ = bq.source_time_begin_;
-  bq.source_ = sched.eva_to_raptor_id_.at("A5");
-  bq.target_ = sched.eva_to_raptor_id_.at("D5");
-  raptor_query q{bq, tt, OccupancyOnly ::trait_size()};
 
-  raptor_statistics rs;
-  invoke_cpu_raptor<OccupancyOnly>(q, rs, sched);
-  reconstructor<OccupancyOnly> rc{bq, *sched_, sched};
-  rc.add(bq.source_time_begin_, *q.result_);
-  auto const journeys = rc.get_journeys();
+  auto const j_rapt = execute_raptor(start_sti.departure_, "A5", "D5");
+  auto const j_rout = execute_routing(start_sti.departure_, "A5", "D5");
 
-  EXPECT_EQ(2, journeys.size());
-  auto const arr_d5 = tt.stop_times_[rTC5_t0_first_sti+5].arrival_;
+  auto check_exp = [&](std::vector<journey> const& journeys) {
+    EXPECT_EQ(2, journeys.size());
+    auto const arr_d5 = tt.stop_times_[rTC5_t0_first_sti+5].arrival_;
 
-  auto const j0 = journeys[0];
-  EXPECT_EQ(1, j0.occupancy_max_);
-  EXPECT_EQ(1, j0.trips_.size());
-  EXPECT_EQ(6, j0.stops_.size());
-  auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d5 - d5_tt);
-  EXPECT_EQ(j0_arrival, j0.stops_[5].arrival_.timestamp_);
+    auto const j0 = journeys[0];
+    EXPECT_EQ(1, j0.occupancy_max_);
+    EXPECT_EQ(1, j0.trips_.size());
+    EXPECT_EQ(6, j0.stops_.size());
+    auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d5 - d5_tt);
+    EXPECT_EQ(j0_arrival, j0.stops_[5].arrival_.timestamp_);
 
-  auto const j1 = journeys[1];
-  EXPECT_EQ(0, j1.occupancy_max_);
-  EXPECT_EQ(2, j1.trips_.size());
-  EXPECT_EQ(4, j1.stops_.size());
-  auto const j1_arrival = motis_to_unixtime(sched_begin, arr_d5 - d5_tt);
-  EXPECT_EQ(j1_arrival, j1.stops_[3].arrival_.timestamp_);
+    auto const j1 = journeys[1];
+    EXPECT_EQ(0, j1.occupancy_max_);
+    EXPECT_EQ(2, j1.trips_.size());
+    EXPECT_EQ(4, j1.stops_.size());
+    auto const j1_arrival = motis_to_unixtime(sched_begin, arr_d5 - d5_tt);
+    EXPECT_EQ(j1_arrival, j1.stops_[3].arrival_.timestamp_);
+  };
+
+  check_exp(j_rapt);
+  check_exp(j_rout);
 }
 
 // Test uses the following schedule (occupancy on trip arrows)
+// Time 0' refers to 12:00 in the schedule
 // Route TC6
 // Stops:   A  --->  B  --->  C  --->  A  --->  D
 // Trip 0:  0' -0-> 10' -1-> 20' -1-> 30' -0-> 40'
@@ -544,40 +653,30 @@ TEST_F(mc_cpu_raptor_tests,
   auto const d6_s_id = tt.route_stops_[routeTC6.index_to_route_stops_+4];
   auto d6_tt = sched.transfer_times_[d6_s_id];
 
-  EXPECT_EQ(5, routeTC6.stop_count_);
-  EXPECT_EQ(1, routeTC6.trip_count_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rTC6_t0_first_sti+1].inbound_occupancy_);
-  EXPECT_EQ(1, tt.stop_occupancies_[rTC6_t0_first_sti+2].inbound_occupancy_);
-  EXPECT_EQ(1, tt.stop_occupancies_[rTC6_t0_first_sti+3].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rTC6_t0_first_sti+4].inbound_occupancy_);
-
   auto const start_sti = tt.stop_times_[rTC6_t0_first_sti];
-  base_query bq{};
-  bq.source_time_begin_ = start_sti.departure_;
-  bq.source_time_end_ = bq.source_time_begin_;
-  bq.source_ = sched.eva_to_raptor_id_.at("A6");
-  bq.target_ = sched.eva_to_raptor_id_.at("D6");
-  raptor_query q{bq, tt, OccupancyOnly ::trait_size()};
 
-  raptor_statistics rs;
-  invoke_cpu_raptor<OccupancyOnly>(q, rs, sched);
-  reconstructor<OccupancyOnly> rc{bq, *sched_, sched};
-  rc.add(bq.source_time_begin_, *q.result_);
-  auto const journeys = rc.get_journeys();
+  auto const j_rapt = execute_raptor(start_sti.departure_, "A6", "D6");
+  auto const j_rout = execute_routing(start_sti.departure_, "A6", "D6");
 
-  EXPECT_EQ(1, journeys.size());
+  auto check_exp = [&](std::vector<journey> const& journeys) {
+    EXPECT_EQ(1, journeys.size());
 
-  auto const j0 = journeys[0];
-  EXPECT_EQ(0, j0.occupancy_max_);
-  EXPECT_EQ(1, j0.trips_.size());
-  EXPECT_EQ(2, j0.stops_.size());
-  auto const arr_d6 = tt.stop_times_[rTC6_t0_first_sti+4].arrival_;
-  auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d6 - d6_tt);
-  EXPECT_EQ(j0_arrival, j0.stops_[1].arrival_.timestamp_);
+    auto const j0 = journeys[0];
+    EXPECT_EQ(0, j0.occupancy_max_);
+    EXPECT_EQ(1, j0.trips_.size());
+    EXPECT_EQ(2, j0.stops_.size());
+    auto const arr_d6 = tt.stop_times_[rTC6_t0_first_sti+4].arrival_;
+    auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d6 - d6_tt);
+    EXPECT_EQ(j0_arrival, j0.stops_[1].arrival_.timestamp_);
+  };
+
+  check_exp(j_rapt);
+  check_exp(j_rout);
 }
 
 
 // Test uses the following schedule (occupancy on trip arrows)
+// Time 0' refers to 12:00 in the schedule
 // Route TC7
 // Stops:   D  --->  B  --->  A  --->  D  --->  C  --->  A  --->  B  --->  D
 // Trip 0:  0' -0-> 10' -1-> 20' -1-> 30' -0-> 40' -2-> 50' -0-> 00' -0-> 10'
@@ -598,47 +697,33 @@ TEST_F(mc_cpu_raptor_tests,
   auto const d7_s_id = tt.route_stops_[routeTC7.index_to_route_stops_+4];
   auto d7_tt = sched.transfer_times_[d7_s_id];
 
-  EXPECT_EQ(8, routeTC7.stop_count_);
-  EXPECT_EQ(1, routeTC7.trip_count_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rTC7_t0_first_sti+1].inbound_occupancy_);
-  EXPECT_EQ(1, tt.stop_occupancies_[rTC7_t0_first_sti+2].inbound_occupancy_);
-  EXPECT_EQ(1, tt.stop_occupancies_[rTC7_t0_first_sti+3].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rTC7_t0_first_sti+4].inbound_occupancy_);
-  EXPECT_EQ(2, tt.stop_occupancies_[rTC7_t0_first_sti+5].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rTC7_t0_first_sti+6].inbound_occupancy_);
-  EXPECT_EQ(0, tt.stop_occupancies_[rTC7_t0_first_sti+7].inbound_occupancy_);
-
   auto const start_sti = tt.stop_times_[rTC7_t0_first_sti];
-  base_query bq{};
-  bq.source_time_begin_ = start_sti.departure_;
-  bq.source_time_end_ = bq.source_time_begin_;
-  bq.source_ = sched.eva_to_raptor_id_.at("A7");
-  bq.target_ = sched.eva_to_raptor_id_.at("D7");
-  raptor_query q{bq, tt, OccupancyOnly ::trait_size()};
 
-  raptor_statistics rs;
-  invoke_cpu_raptor<OccupancyOnly>(q, rs, sched);
-  reconstructor<OccupancyOnly> rc{bq, *sched_, sched};
-  rc.add(bq.source_time_begin_, *q.result_);
-  auto const journeys = rc.get_journeys();
+  auto const j_rapt = execute_raptor(start_sti.departure_, "A7", "D7");
+  auto const j_rout = execute_routing(start_sti.departure_, "A7", "D7");
 
-  EXPECT_EQ(2, journeys.size());
+  auto check_exp = [&](std::vector<journey> const& journeys) {
+    EXPECT_EQ(2, journeys.size());
 
-  auto const j0 = journeys[0];
-  EXPECT_EQ(0, j0.occupancy_max_);
-  EXPECT_EQ(1, j0.trips_.size());
-  EXPECT_EQ(3, j0.stops_.size());
-  auto const arr_d7_0 = tt.stop_times_[rTC7_t0_first_sti+7].arrival_;
-  auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d7_0 - d7_tt);
-  EXPECT_EQ(j0_arrival, j0.stops_[2].arrival_.timestamp_);
+    auto const j0 = journeys[0];
+    EXPECT_EQ(0, j0.occupancy_max_);
+    EXPECT_EQ(1, j0.trips_.size());
+    EXPECT_EQ(3, j0.stops_.size());
+    auto const arr_d7_0 = tt.stop_times_[rTC7_t0_first_sti+7].arrival_;
+    auto const j0_arrival = motis_to_unixtime(sched_begin, arr_d7_0 - d7_tt);
+    EXPECT_EQ(j0_arrival, j0.stops_[2].arrival_.timestamp_);
 
-  auto const j1 = journeys[1];
-  EXPECT_EQ(1, j1.occupancy_max_);
-  EXPECT_EQ(1, j1.trips_.size());
-  EXPECT_EQ(2, j1.stops_.size());
-  auto const arr_d7_1 = tt.stop_times_[rTC7_t0_first_sti+3].arrival_;
-  auto const j1_arrival = motis_to_unixtime(sched_begin, arr_d7_1 - d7_tt);
-  EXPECT_EQ(j1_arrival, j1.stops_[1].arrival_.timestamp_);
+    auto const j1 = journeys[1];
+    EXPECT_EQ(1, j1.occupancy_max_);
+    EXPECT_EQ(1, j1.trips_.size());
+    EXPECT_EQ(2, j1.stops_.size());
+    auto const arr_d7_1 = tt.stop_times_[rTC7_t0_first_sti+3].arrival_;
+    auto const j1_arrival = motis_to_unixtime(sched_begin, arr_d7_1 - d7_tt);
+    EXPECT_EQ(j1_arrival, j1.stops_[1].arrival_.timestamp_);
+  };
+
+  check_exp(j_rapt);
+  check_exp(j_rout);
 }
 
 }  // namespace motis::raptor

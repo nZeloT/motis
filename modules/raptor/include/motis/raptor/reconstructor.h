@@ -162,7 +162,7 @@ struct reconstructor {
   }
 
   struct intermediate_journey {
-    intermediate_journey(transfers const trs) : transfers_(trs) {}
+    explicit intermediate_journey(transfers const trs) : transfers_(trs) {}
 
     void add_footpath(station_id const to, motis::time const a_time,
                       motis::time const d_time, motis::time const duration,

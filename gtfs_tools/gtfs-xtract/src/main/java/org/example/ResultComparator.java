@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 public class ResultComparator {
+
   static class CompareTrip {
     public CompareTrip(JSONObject trip, List<Stop> stops) {
       var range = (JSONObject) trip.get("range");
@@ -276,21 +277,29 @@ public class ResultComparator {
     }
   }
 
+  static final boolean fullPrint = false;
+
   public static void main(String[] args) throws IOException, ParseException {
     var mocRelevant = true;
-    var raptorLines = Files.readAllLines(Path.of("./verification/sbb/r-routing-moc_bi.txt"));
+    System.out.print("Reading Files ...");
+    var raptorLines = Files.readAllLines(Path.of("./verification/sbb/r-raptor_cpu-moc.txt"));
     //var routingLines = Files.readAllLines(Path.of("./data/results/r-fwd-routing-moc.txt"));
-    var routingLines = Files.readAllLines(Path.of("./verification/sbb/r-routing-moc.txt"));
+    var routingLines = Files.readAllLines(Path.of("./verification/sbb/r-routing-moc-14-transfers.txt"));
 
     if (raptorLines.size() != routingLines.size()) throw new IllegalStateException("Line Counts don't match!");
+    System.out.println("Ok");
 
+    System.out.print("Parsing data ...");
     var raptorConns = transform(raptorLines, mocRelevant);
     var routingConns = transform(routingLines, mocRelevant);
     //for(var e : routingConns.entrySet()) {
     //  filterDominated(e.getValue(), mocRelevant);
     //}
+    System.out.println("Ok");
 
+    System.out.print("Comparing ...");
     var comparison = compare(raptorLines.size(), raptorConns, routingConns, mocRelevant);
+    System.out.println("Ok");
 
     var full_match_count = 0;
     var matchingConCount = 0;
@@ -302,9 +311,11 @@ public class ResultComparator {
     var totalCount = raptorLines.size();
 
     for (var res : comparison) {
-      System.out.println(res.toString(mocRelevant));
-      System.out.println();
-      System.out.println();
+      if(fullPrint || !res.isFullMatch()) {
+        System.out.println(res.toString(mocRelevant));
+        System.out.println();
+        System.out.println();
+      }
 
       totalMatchingCnt += res.matchingConns;
       totalConnCnt += res.raptorConns.size();
@@ -338,15 +349,19 @@ public class ResultComparator {
     System.out.println();
     System.out.println();
 
-    var blcRpc = new StringBuilder("More Raptor Connections for Queries: ");
-    moreRpcConns.forEach((e) -> blcRpc.append(e.id).append(", "));
-    System.out.println(blcRpc);
-    System.out.println();
-    System.out.println();
+    if(!moreRpcConns.isEmpty()) {
+      var blcRpc = new StringBuilder("More Raptor Connections for Queries: ");
+      moreRpcConns.forEach((e) -> blcRpc.append(e.id).append(", "));
+      System.out.println(blcRpc);
+      System.out.println();
+      System.out.println();
+    }
 
-    var blcRoc = new StringBuilder("More Routing Connections for Queries: ");
-    moreRocConns.forEach((e) -> blcRoc.append(e.id).append(", "));
-    System.out.println(blcRoc);
+    if(!moreRocConns.isEmpty()) {
+      var blcRoc = new StringBuilder("More Routing Connections for Queries: ");
+      moreRocConns.forEach((e) -> blcRoc.append(e.id).append(", "));
+      System.out.println(blcRoc);
+    }
   }
 
 }

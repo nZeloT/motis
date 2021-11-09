@@ -374,7 +374,7 @@ inline void invoke_cpu_raptor(const raptor_query& query, raptor_statistics&,
 
 #ifdef _DEBUG
   print_query(query);
-  print_routes({28940}, tt);
+  //print_routes({39581}, tt);
   //print_stations(raptor_sched);
   //print_route_trip_debug_strings(raptor_sched);
 #endif
