@@ -1,37 +1,41 @@
 #pragma once
 
-#include "motis/raptor-core/raptor_timetable.h"
+#include <cstdint>
+#include <tuple>
+#include <algorithm>
 
 namespace motis::raptor {
 
-constexpr uint8_t occ_value_range = 2;  // ^= 0-2
-constexpr std::size_t occ_value_range_size = occ_value_range + 1;
-constexpr std::size_t occ_total_value_range_size =
-    max_round_k * occ_value_range_size;
+constexpr uint8_t max_occupancy = 2;
 
-struct trait_occupancy {
+// linearly scale max_occupancy values to indices
+constexpr uint32_t moc_value_range_size = max_occupancy + 1;
+
+struct trait_max_occupancy {
   // Trait Data
-  uint8_t occupancy_;
+  uint8_t max_occupancy_;
 
-  inline static std::size_t value_range_size() {
-    return occ_total_value_range_size;
-  }
+  inline static uint32_t value_range_size() { return moc_value_range_size; }
 
   template <typename TraitsData>
   inline static void fill_trait_data_from_idx(TraitsData& dt,
-                                              uint32_t const dim_idx) {
-    //total occupancy linearly maps to the dimension idx
-    dt.occupancy_ = dim_idx;
+                                              uint32_t const dimension_idx) {
+    // can be used as occupancy at idx 0
+    //  maps to an occupancy value of 0
+    dt.max_occupancy_ = dimension_idx;
   }
 
-  inline static bool is_update_required(TraitsData const& current_trip_data,
-                                        uint32_t old_trip_idx) {
-    return true;//TODO
+  template <typename TraitsData>
+  inline static bool is_update_required(TraitsData const& data,
+                                        uint32_t trait_idx) {
+    return trait_idx >=
+           data.max_occupancy_;  // for MOC there is trait_idx == trait_value
   }
 
-  inline static bool is_trait_satisfied(TraitsData const& current_trip_data,
-                                        uint32_t old_trip_idx) {
-    return old_trip_idx == 0 && current_trip_data.occupancy_ == 0;//TODO
+  template <typename TraitsData>
+  inline static bool is_trait_satisfied(TraitsData const& data,
+                                        uint32_t trait_idx) {
+    return trait_idx == 0 && data.max_occupancy_ == 0;
   }
 
   template <typename TraitsData, typename Timetable>
@@ -46,7 +50,7 @@ struct trait_occupancy {
 
   template <typename TraitsData>
   inline static void reset_aggregate(TraitsData& aggregate_dt) {
-    aggregate_dt.occupancy_ = 0;
+    aggregate_dt.max_occupancy_ = 0;
   }
 
   template <typename TraitsData, typename Timetable>
@@ -62,9 +66,10 @@ struct trait_occupancy {
     auto const arr_sti =
         route.index_to_stop_times_ + (route.stop_count_ * t_id) + arr_offset;
 
-    uint8_t occ = 0;
+    uint8_t max_occ = 0;
     for (auto sti = (dep_sti + 1); sti <= arr_sti; ++sti) {
-      occ += tt.stop_occupancies_[sti].inbound_occupancy_;
+      max_occ =
+          std::max(max_occ, tt.stop_occupancies_[sti].inbound_occupancy_);
     }
 
     return max_occ <= dt.max_occupancy_;
@@ -74,11 +79,10 @@ struct trait_occupancy {
   template <typename Journey, typename Candidate>
   static bool dominates(Journey const& journey, Candidate const& candidate) {
     // 1. determine candidate max_occupancy
-    auto const candidate_occ = candidate.trait_data_.occupancy_;
+    auto const candidate_max_occ = candidate.trait_data_.max_occupancy_;
     // 2. compare against journeys max_occupancy
-    return journey.occupancy_ <= candidate_occ;
+    return journey.occupancy_max_ <= candidate_max_occ;
   }
-
 };
 
 }  // namespace motis::raptor

@@ -4,7 +4,7 @@
 
 namespace motis::raptor {
 
-template <typename Traits, typename Filter>
+template <typename Traits>
 struct config {
   using TraitsData = typename Traits::TraitsData;
 
@@ -13,20 +13,6 @@ struct config {
   inline static int get_arrival_idx(uint32_t const stop_idx,
                                     uint32_t const trait_offset = 0) {
     return stop_idx * trait_size() + trait_offset;
-  }
-
-  // used during route update to update a arrival time
-  // and propagate it along the trait feature accordingly if desired
-  template <typename Timetable, typename TimeVal>
-  inline static std::tuple<TimeVal, bool> check_and_update_arrivals_old(
-      TimeVal* const& prev_arrivals, TimeVal*& curr_arrivals,
-      Timetable const& tt, uint32_t const dep_stop_id,
-      uint32_t const curr_stop_id, uint32_t const departure_stop_time_idx,
-      uint32_t const current_stop_time_idx) {
-    return Traits::check_and_update_arrivals_old(
-        trait_size(), prev_arrivals, curr_arrivals, tt,
-        get_arrival_idx(dep_stop_id), get_arrival_idx(curr_stop_id),
-        departure_stop_time_idx, current_stop_time_idx);
   }
 
   inline static bool is_update_required(TraitsData const& td, uint32_t t_offset) {
@@ -75,11 +61,6 @@ struct config {
   inline static bool dominates(Journey const& journey,
                                Candidate const& candidate) {
     return Traits::dominates(journey, candidate);
-  }
-
-  template <typename Timetable>
-  inline static bool is_filtered(Timetable const& tt, int stop_time_idx) {
-    return Filter::is_filtered(tt, stop_time_idx);
   }
 };
 
