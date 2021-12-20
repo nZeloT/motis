@@ -123,7 +123,7 @@ struct pretrip_gen {
           l = mem.create<Label>(e, nullptr, start, lbs);
         } else {
           auto new_label = mem.create<Label>();
-          if (!l->create_label(*new_label, *e, lbs, false,
+          if (!l->create_single_label(*new_label, *e, lbs, false,
                                additional_time_cost)) {
             return;
           }
@@ -149,7 +149,7 @@ struct pretrip_gen {
         l = mem.create<Label>(e, nullptr, start, lbs);
       } else {
         auto new_label = mem.create<Label>();
-        if (!l->create_label(*new_label, *e, lbs, false,
+        if (!l->create_single_label(*new_label, *e, lbs, false,
                              additional_time_cost)) {
           return;
         }

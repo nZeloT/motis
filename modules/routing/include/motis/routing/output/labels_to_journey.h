@@ -49,6 +49,16 @@ inline unsigned night_penalty(late_connections_label_for_tests<Dir> const& l) {
   return l.night_penalty_;
 }
 
+template<typename Label>
+inline unsigned max_occupancy(Label const&) {
+  return 0;
+}
+
+template<search_dir Dir>
+inline unsigned max_occupancy(occ_label<Dir> const& l) {
+  return l.max_occ_;
+}
+
 template <typename Label>
 journey labels_to_journey(schedule const& sched, Label* label,
                           search_dir const dir) {
@@ -74,6 +84,7 @@ journey labels_to_journey(schedule const& sched, Label* label,
 
   j.db_costs_ = db_costs(*label);
   j.night_penalty_ = night_penalty(*label);
+  j.max_occupancy_ = max_occupancy(*label);
 
   return j;
 }

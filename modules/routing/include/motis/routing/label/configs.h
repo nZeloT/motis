@@ -1,10 +1,12 @@
 #pragma once
 
 #include "motis/routing/label/comparator.h"
+#include "motis/routing/label/connection_selector.h"
 #include "motis/routing/label/criteria/absurdity.h"
 #include "motis/routing/label/criteria/accessibility.h"
 #include "motis/routing/label/criteria/late_connections.h"
 #include "motis/routing/label/criteria/no_intercity.h"
+#include "motis/routing/label/criteria/occupancy.h"
 #include "motis/routing/label/criteria/transfers.h"
 #include "motis/routing/label/criteria/travel_time.h"
 #include "motis/routing/label/criteria/weighted.h"
@@ -25,6 +27,8 @@ using default_label =
                       absurdity_initializer>,
           updater<travel_time_updater, transfers_updater, absurdity_updater>,
           filter<travel_time_filter, transfers_filter>,
+          default_edge_cost_function,
+          single_criterion_con_selector<default_con_selector>,
           dominance<absurdity_tb, travel_time_dominance, transfers_dominance>,
           dominance<absurdity_post_search_tb, travel_time_alpha_dominance,
                     transfers_dominance>,
@@ -36,7 +40,8 @@ using default_simple_label = label<
     label_data<travel_time, transfers>,
     initializer<travel_time_initializer, transfers_initializer>,
     updater<travel_time_updater, transfers_updater>,
-    filter<travel_time_filter, transfers_filter>,
+    filter<travel_time_filter, transfers_filter>, default_edge_cost_function,
+    single_criterion_con_selector<default_con_selector>,
     dominance<default_tb, travel_time_dominance, transfers_dominance>,
     dominance<post_search_tb, travel_time_alpha_dominance, transfers_dominance>,
     comparator<transfers_dominance>>;
@@ -45,16 +50,37 @@ template <search_dir Dir>
 using single_criterion_label =
     label<Dir, MAX_WEIGHTED, false, get_weighted_lb, label_data<weighted>,
           initializer<weighted_initializer>, updater<weighted_updater>,
-          filter<weighted_filter>, dominance<default_tb, weighted_dominance>,
-          dominance<post_search_tb>, comparator<weighted_dominance>>;
+          filter<weighted_filter>, default_edge_cost_function,
+          single_criterion_con_selector<default_con_selector>,
+          dominance<default_tb, weighted_dominance>, dominance<post_search_tb>,
+          comparator<weighted_dominance>>;
 
 template <search_dir Dir>
 using single_criterion_no_intercity_label =
     label<Dir, MAX_WEIGHTED, false, get_weighted_lb, label_data<weighted>,
           initializer<weighted_initializer>, updater<weighted_updater>,
           filter<weighted_filter, no_intercity_filter>,
+          default_edge_cost_function,
+          single_criterion_con_selector<default_con_selector>,
           dominance<default_tb, weighted_dominance>, dominance<post_search_tb>,
           comparator<weighted_dominance>>;
+
+template <search_dir Dir>
+using occ_label =
+    label<Dir, MAX_TRAVEL_TIME, false, get_travel_time_lb,
+          label_data<travel_time, transfers, absurdity, occupancy>,
+          initializer<travel_time_initializer, transfers_initializer,
+                      absurdity_initializer, occupancy_initializer>,
+          updater<travel_time_updater, transfers_updater, absurdity_updater,
+                  occupancy_updater<false>>,
+          filter<travel_time_filter, transfers_filter>,
+          default_edge_cost_function,
+          single_criterion_con_selector<default_con_selector>,
+          dominance<default_tb, travel_time_dominance, transfers_dominance,
+                    occupancy_dominance_max>,
+          dominance<post_search_tb, travel_time_alpha_dominance,
+                    transfers_dominance, occupancy_dominance_max>,
+          comparator<transfers_dominance>>;
 
 template <search_dir Dir>
 using late_connections_label = label<
@@ -65,6 +91,8 @@ using late_connections_label = label<
     updater<travel_time_updater, transfers_updater, late_connections_updater,
             absurdity_updater>,
     filter<travel_time_filter, transfers_filter, late_connections_filter>,
+    default_edge_cost_function,
+    single_criterion_con_selector<default_con_selector>,
     dominance<absurdity_tb, travel_time_dominance, transfers_dominance,
               late_connections_dominance>,
     dominance<absurdity_post_search_tb, travel_time_alpha_dominance,
@@ -79,6 +107,8 @@ using late_connections_label_for_tests = label<
                 late_connections_initializer>,
     updater<travel_time_updater, transfers_updater, late_connections_updater>,
     filter<travel_time_filter, transfers_filter, late_connections_filter>,
+    default_edge_cost_function,
+    single_criterion_con_selector<default_con_selector>,
     dominance<default_tb, travel_time_dominance, transfers_dominance,
               late_connections_dominance>,
     dominance<post_search_tb, travel_time_alpha_dominance, transfers_dominance,
@@ -94,6 +124,8 @@ using accessibility_label =
           updater<travel_time_updater, transfers_updater, accessibility_updater,
                   absurdity_updater>,
           filter<travel_time_filter, transfers_filter>,
+          default_edge_cost_function,
+          single_criterion_con_selector<default_con_selector>,
           dominance<absurdity_tb, travel_time_dominance, transfers_dominance,
                     accessibility_dominance>,
           dominance<absurdity_post_search_tb, travel_time_alpha_dominance,

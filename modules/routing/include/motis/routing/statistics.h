@@ -64,10 +64,10 @@ struct statistics {
     add_entry("labels_to_journey", s.labels_to_journey_);
     add_entry("max_label_quit", s.max_label_quit_ ? 1 : 0);
     add_entry("num_bytes_in_use", s.num_bytes_in_use_);
-    add_entry("pareto_dijkstra", s.pareto_dijkstra_);
+    add_entry("pareto_dijkstra (ms)", s.pareto_dijkstra_);
     add_entry("priority_queue_max_size", s.priority_queue_max_size_);
     add_entry("start_label_count", s.start_label_count_);
-    add_entry("total_calculation_time", s.total_calculation_time_);
+    add_entry("total_calculation_time (ms)", s.total_calculation_time_);
     add_entry("transfers_lb", s.transfers_lb_);
     add_entry("travel_time_lb", s.travel_time_lb_);
     add_entry("interval_extensions", s.interval_extensions_);

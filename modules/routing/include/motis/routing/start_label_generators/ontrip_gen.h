@@ -101,7 +101,7 @@ struct ontrip_gen {
         l = mem.create<Label>(e, nullptr, start_time, lbs, lcon);
       } else {
         auto new_label = mem.create<Label>();
-        if (!l->create_label(*new_label, *e, lbs, false,
+        if (!l->create_single_label(*new_label, *e, lbs, false,
                              additional_time_cost)) {
           return;
         }

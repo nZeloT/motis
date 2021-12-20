@@ -122,49 +122,91 @@ struct pareto_dijkstra {
 
 private:
   void create_new_label(Label* l, edge const& edge) {
-    Label blank{};
-    bool created = l->create_label(
-        blank, edge, lower_bounds_,
-        (Dir == search_dir::FWD && edge.type() == edge::EXIT_EDGE &&
-         is_goal_[edge.get_source<Dir>()->get_station()->id_]) ||
-            (Dir == search_dir::BWD && edge.type() == edge::ENTER_EDGE &&
-             is_goal_[edge.get_source<Dir>()->get_station()->id_]));
-    if (!created) {
-      return;
-    }
+    l->create_label(
+        edge, lower_bounds_,
+        edge.get_source<Dir>()->get_station()->id_ < station_node_count_ &&
+            is_goal_[edge.get_source<Dir>()->get_station()->id_] &&
+            edge.get_destination<Dir>()->id_ < station_node_count_ &&
+            is_goal_[edge.get_destination<Dir>()->id_],
+        [&](Label label) {
+          auto new_label = label_store_.create<Label>(label);
+          ++stats_.labels_created_;
 
-    auto new_label = label_store_.create<Label>(blank);
-    ++stats_.labels_created_;
+          if (edge.get_destination<Dir>()->id_ < station_node_count_ &&
+              is_goal_[edge.get_destination<Dir>()->id_]) {
+            add_result(new_label);
+            if (stats_.labels_popped_until_first_result_ == 0) {
+              stats_.labels_popped_until_first_result_ = stats_.labels_popped_;
+            }
+            return;
+          }
 
-    if (edge.get_destination<Dir>()->id_ < station_node_count_ &&
-        is_goal_[edge.get_destination<Dir>()->id_]) {
-      add_result(new_label);
-      if (stats_.labels_popped_until_first_result_ == 0) {
-        stats_.labels_popped_until_first_result_ = stats_.labels_popped_;
-      }
-      return;
-    }
-
-    // if the label is not dominated by a former one for the same node...
-    //...add it to the queue
-    if (!dominated_by_results(new_label)) {
-      if (add_label_to_node(new_label, edge.get_destination<Dir>())) {
-        // if the new_label is as good as label we don't have to push it into
-        // the queue
-        if (!FORWARDING || l < new_label) {
-          queue_.push(new_label);
-        } else {
-          equals_.push_back(new_label);
-        }
-      } else {
-        label_store_.release(new_label);
-        stats_.labels_dominated_by_former_labels_++;
-      }
-    } else {
-      label_store_.release(new_label);
-      stats_.labels_dominated_by_results_++;
-    }
+          // if the label is not dominated by a former one for the same node...
+          //...add it to the queue
+          if (!dominated_by_results(new_label)) {
+            if (add_label_to_node(new_label, edge.get_destination<Dir>())) {
+              // if the new_label is as good as label we don't have to push it
+              // into
+              // the queue
+              if (!FORWARDING || l < new_label) {
+                queue_.push(new_label);
+              } else {
+                equals_.push_back(new_label);
+              }
+            } else {
+              label_store_.release(new_label);
+              stats_.labels_dominated_by_former_labels_++;
+            }
+          } else {
+            label_store_.release(new_label);
+            stats_.labels_dominated_by_results_++;
+          }
+        });
   }
+//  void create_new_label(Label* l, edge const& edge) {
+//    Label blank{};
+//    bool created = l->create_label(
+//        blank, edge, lower_bounds_,
+//        (Dir == search_dir::FWD && edge.type() == edge::EXIT_EDGE &&
+//         is_goal_[edge.get_source<Dir>()->get_station()->id_]) ||
+//            (Dir == search_dir::BWD && edge.type() == edge::ENTER_EDGE &&
+//             is_goal_[edge.get_source<Dir>()->get_station()->id_]));
+//    if (!created) {
+//      return;
+//    }
+//
+//    auto new_label = label_store_.create<Label>(blank);
+//    ++stats_.labels_created_;
+//
+//    if (edge.get_destination<Dir>()->id_ < station_node_count_ &&
+//        is_goal_[edge.get_destination<Dir>()->id_]) {
+//      add_result(new_label);
+//      if (stats_.labels_popped_until_first_result_ == 0) {
+//        stats_.labels_popped_until_first_result_ = stats_.labels_popped_;
+//      }
+//      return;
+//    }
+//
+//    // if the label is not dominated by a former one for the same node...
+//    //...add it to the queue
+//    if (!dominated_by_results(new_label)) {
+//      if (add_label_to_node(new_label, edge.get_destination<Dir>())) {
+//        // if the new_label is as good as label we don't have to push it into
+//        // the queue
+//        if (!FORWARDING || l < new_label) {
+//          queue_.push(new_label);
+//        } else {
+//          equals_.push_back(new_label);
+//        }
+//      } else {
+//        label_store_.release(new_label);
+//        stats_.labels_dominated_by_former_labels_++;
+//      }
+//    } else {
+//      label_store_.release(new_label);
+//      stats_.labels_dominated_by_results_++;
+//    }
+//  }
 
   bool add_result(Label* terminal_label) {
     for (auto it = results_.begin(); it != results_.end();) {
