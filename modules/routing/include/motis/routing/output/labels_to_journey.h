@@ -55,8 +55,18 @@ inline unsigned max_occupancy(Label const&) {
 }
 
 template<search_dir Dir>
-inline unsigned max_occupancy(occ_label<Dir> const& l) {
+inline unsigned max_occupancy(max_occ_label<Dir> const& l) {
   return l.max_occ_;
+}
+
+template<typename Label>
+inline unsigned occupancy(Label const&) {
+  return 0;
+}
+
+template<search_dir Dir>
+inline unsigned occupancy(occ_label<Dir> const& l) {
+  return l.occ_;
 }
 
 template <typename Label>
@@ -85,6 +95,7 @@ journey labels_to_journey(schedule const& sched, Label* label,
   j.db_costs_ = db_costs(*label);
   j.night_penalty_ = night_penalty(*label);
   j.max_occupancy_ = max_occupancy(*label);
+  j.time_slotted_occupancy_ = occupancy(*label);
 
   return j;
 }

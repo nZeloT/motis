@@ -54,6 +54,8 @@ inline search_result search_dispatch(search_query const& q,
     case SearchType_Accessibility:
       return get_connections<accessibility_label<Dir>, Gen>(q);
     case SearchType_MaxOccupancy:
+      return get_connections<max_occ_label<Dir>, Gen>(q);
+    case SearchType_TimeSlottedOccupancy:
       return get_connections<occ_label<Dir>, Gen>(q);
     default: break;
   }
