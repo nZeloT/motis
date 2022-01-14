@@ -101,7 +101,7 @@ enum SearchType : byte {
 
   MaxOccupancy,
   TimeSlottedOccupancy,
-  MinTransferTimes
+  MaxTransferClass
 }
 
 // ----------------------------------------------------------------------------

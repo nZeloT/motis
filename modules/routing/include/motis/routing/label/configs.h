@@ -10,6 +10,7 @@
 #include "motis/routing/label/criteria/transfers.h"
 #include "motis/routing/label/criteria/travel_time.h"
 #include "motis/routing/label/criteria/weighted.h"
+#include "motis/routing/label/criteria/transfer_classes.h"
 #include "motis/routing/label/dominance.h"
 #include "motis/routing/label/filter.h"
 #include "motis/routing/label/initializer.h"
@@ -33,6 +34,24 @@ using default_label =
           dominance<absurdity_post_search_tb, travel_time_alpha_dominance,
                     transfers_dominance>,
           comparator<transfers_dominance>>;
+
+template <search_dir Dir>
+using tc_label = label<
+    Dir, MAX_TRAVEL_TIME, true, get_travel_time_lb,
+    label_data<travel_time, transfers, absurdity, transfer_classes>,
+    initializer<travel_time_initializer, transfers_initializer,
+                absurdity_initializer, transfer_classes_initializer>,
+    updater<travel_time_updater, transfers_updater, absurdity_updater,
+            transfer_classes_updater>,
+    filter<travel_time_filter, transfers_filter>,
+    transfer_class_edge_cost_function,
+    single_criterion_con_selector<transfer_classes_con_selector,
+                                  default_con_selector>,
+    dominance<absurdity_tb, travel_time_dominance, transfers_dominance,
+              transfer_classes_max_dominance>,
+    dominance<absurdity_post_search_tb, travel_time_alpha_dominance,
+              transfers_dominance, transfer_classes_max_dominance>,
+    comparator<transfers_dominance>>;
 
 template <search_dir Dir>
 using default_simple_label = label<

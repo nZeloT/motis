@@ -57,6 +57,8 @@ inline search_result search_dispatch(search_query const& q,
       return get_connections<max_occ_label<Dir>, Gen>(q);
     case SearchType_TimeSlottedOccupancy:
       return get_connections<occ_label<Dir>, Gen>(q);
+    case SearchType_MaxTransferClass:
+      return get_connections<tc_label<Dir>, Gen>(q);
     default: break;
   }
   throw std::system_error(error::search_type_not_supported);
